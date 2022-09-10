@@ -33,7 +33,6 @@ namespace TodoList.Shared.Data.Models
         [Required]
         public bool IsEmailVerified { get; set; }
         [Required]
-        [MaxLength(20)]
         [Unicode(false)]
         public string PasswordHashBase64 { get; set; }
         [Required]

@@ -12,10 +12,10 @@ namespace TodoList.Shared.Svcs.Services
 {
     public sealed class UserService : IUserService
     {
-        private static readonly int SaltLength = 8;
-        private static readonly int HashIterations = 10000;
-        private static readonly int HashLength = 32;
-        private static readonly string Pepper = "Acx6ZkMZ";
+        private static readonly int SALT_LENGTH = 8;
+        private static readonly int HASH_ITERATIONS = 10000;
+        private static readonly int HASH_LENGTH = 32;
+        private static readonly string PEPPER = "Acx6ZkMZ";
 
         private TodoListDbContext _dbContext;
         private ILogger<UserService> _logger;
@@ -51,15 +51,27 @@ namespace TodoList.Shared.Svcs.Services
         }
 
         [UnsupportedOSPlatform("browser")]
-        public async Task<Guid?> SignupAsync(string email, string name, string password)
+        public async Task<bool> CanLoginAsync(string email, string password)
+        {
+            User? user = await GetUserByEmailOrNullAsync(email);
+            if (user == null)
+            {
+                return false;
+            }
+            string hashBase64 = Convert.ToBase64String(PasswordHasher.HashPassword(password, Convert.FromBase64String(user.SaltBase64), PEPPER, HASH_ITERATIONS, HASH_LENGTH));
+            return user.PasswordHashBase64 == hashBase64;
+        }
+
+        [UnsupportedOSPlatform("browser")]
+        public async Task<Guid?> SignupAsync(string email, string password, string name)
         {
             if (await IsEmailExistAsync(email) || await IsNameExistAsync(name))
             {
                 return null;
             }
 
-            byte[] salt = PasswordHasher.GetSalt(SaltLength);
-            byte[] hash = PasswordHasher.HashPassword(password, salt, Pepper, HashIterations, HashLength);
+            byte[] salt = PasswordHasher.GetSalt(SALT_LENGTH);
+            byte[] hash = PasswordHasher.HashPassword(password, salt, PEPPER, HASH_ITERATIONS, HASH_LENGTH);
 
             string saltBase64 = Convert.ToBase64String(salt);
             string hashBase64 = Convert.ToBase64String(hash);
@@ -80,14 +92,14 @@ namespace TodoList.Shared.Svcs.Services
             }
 
             byte[] salt = Convert.FromBase64String(user.SaltBase64);
-            byte[] oldHash = PasswordHasher.HashPassword(oldPassword, salt, Pepper, HashIterations, HashLength);
+            byte[] oldHash = PasswordHasher.HashPassword(oldPassword, salt, PEPPER, HASH_ITERATIONS, HASH_LENGTH);
 
             if (!Convert.FromBase64String(user.PasswordHashBase64).SequenceEqual(oldHash))
             {
                 return false;
             }
 
-            byte[] newHash = PasswordHasher.HashPassword(newPassword, salt, Pepper, HashIterations, HashLength);
+            byte[] newHash = PasswordHasher.HashPassword(newPassword, salt, PEPPER, HASH_ITERATIONS, HASH_LENGTH);
             string newHashBase64 = Convert.ToBase64String(newHash);
             user.PasswordHashBase64 = newHashBase64;
             _dbContext.Users.Update(user);

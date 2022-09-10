@@ -90,9 +90,8 @@ namespace TodoList.Migrations.Migrations
 
                     b.Property<string>("PasswordHashBase64")
                         .IsRequired()
-                        .HasMaxLength(20)
                         .IsUnicode(false)
-                        .HasColumnType("varchar(20)");
+                        .HasColumnType("varchar(max)");
 
                     b.Property<string>("RoleName")
                         .IsRequired()

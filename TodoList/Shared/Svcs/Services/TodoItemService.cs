@@ -7,7 +7,7 @@ using TodoList.Shared.Svcs.Interfaces;
 
 namespace TodoList.Shared.Svcs.Services
 {
-    public class TodoItemService : ITodoItemService
+    public sealed class TodoItemService : ITodoItemService
     {
         private TodoListDbContext _dbContext;
         private ILogger<TodoItemService> _logger;

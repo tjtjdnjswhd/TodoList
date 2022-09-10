@@ -11,7 +11,5 @@ namespace TodoList.Shared.Models
         public string Body { get; set; }
         public bool IsBodyHtml { get; set; }
         public Encoding BodyEncoding { get; set; }
-        public bool EnableSsl { get; set; }
-
     }
 }

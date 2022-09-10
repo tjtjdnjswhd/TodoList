@@ -29,7 +29,7 @@ namespace TodoList.Migrations.Migrations
                     Email = table.Column<string>(type: "nvarchar(320)", maxLength: 320, nullable: false),
                     Name = table.Column<string>(type: "nvarchar(12)", maxLength: 12, nullable: false),
                     IsEmailVerified = table.Column<bool>(type: "bit", nullable: false),
-                    PasswordHashBase64 = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
+                    PasswordHashBase64 = table.Column<string>(type: "varchar(max)", unicode: false, nullable: false),
                     SaltBase64 = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
                     RoleName = table.Column<string>(type: "varchar(20)", nullable: false)
                 },
