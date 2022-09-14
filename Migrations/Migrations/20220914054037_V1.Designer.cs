@@ -12,19 +12,19 @@ using TodoList.Shared.Data;
 namespace TodoList.Migrations.Migrations
 {
     [DbContext(typeof(TodoListDbContext))]
-    [Migration("20220805054411_V1")]
+    [Migration("20220914054037_V1")]
     partial class V1
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "6.0.7")
+                .HasAnnotation("ProductVersion", "6.0.9")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
 
-            modelBuilder.Entity("TodoList.Data.Models.Role", b =>
+            modelBuilder.Entity("TodoList.Shared.Data.Models.Role", b =>
                 {
                     b.Property<string>("Name")
                         .HasMaxLength(20)
@@ -39,7 +39,7 @@ namespace TodoList.Migrations.Migrations
                     b.ToTable("Role");
                 });
 
-            modelBuilder.Entity("TodoList.Data.Models.TodoItem", b =>
+            modelBuilder.Entity("TodoList.Shared.Data.Models.TodoItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -49,10 +49,13 @@ namespace TodoList.Migrations.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.Property<bool>("IsComplete")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -69,7 +72,7 @@ namespace TodoList.Migrations.Migrations
                     b.ToTable("TodoItem");
                 });
 
-            modelBuilder.Entity("TodoList.Data.Models.User", b =>
+            modelBuilder.Entity("TodoList.Shared.Data.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -113,9 +116,9 @@ namespace TodoList.Migrations.Migrations
                     b.ToTable("User");
                 });
 
-            modelBuilder.Entity("TodoList.Data.Models.TodoItem", b =>
+            modelBuilder.Entity("TodoList.Shared.Data.Models.TodoItem", b =>
                 {
-                    b.HasOne("TodoList.Data.Models.User", "User")
+                    b.HasOne("TodoList.Shared.Data.Models.User", "User")
                         .WithMany("TodoItems")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -124,9 +127,9 @@ namespace TodoList.Migrations.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("TodoList.Data.Models.User", b =>
+            modelBuilder.Entity("TodoList.Shared.Data.Models.User", b =>
                 {
-                    b.HasOne("TodoList.Data.Models.Role", "Role")
+                    b.HasOne("TodoList.Shared.Data.Models.Role", "Role")
                         .WithMany("Users")
                         .HasForeignKey("RoleName")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -135,12 +138,12 @@ namespace TodoList.Migrations.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("TodoList.Data.Models.Role", b =>
+            modelBuilder.Entity("TodoList.Shared.Data.Models.Role", b =>
                 {
                     b.Navigation("Users");
                 });
 
-            modelBuilder.Entity("TodoList.Data.Models.User", b =>
+            modelBuilder.Entity("TodoList.Shared.Data.Models.User", b =>
                 {
                     b.Navigation("TodoItems");
                 });

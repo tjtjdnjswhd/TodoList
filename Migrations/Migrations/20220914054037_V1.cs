@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -51,8 +50,8 @@ namespace TodoList.Migrations.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    IsComplete = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
+                    IsComplete = table.Column<bool>(type: "bit", nullable: false, defaultValue: false),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
@@ -81,8 +80,6 @@ namespace TodoList.Migrations.Migrations
                 name: "IX_User_RoleName",
                 table: "User",
                 column: "RoleName");
-
-            migrationBuilder.Sql("INSERT INTO dbo.[Role] ([Name], [Priority]) VALUES ('User', 1), ('Manager', 2), ('Admin', 3)");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

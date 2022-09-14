@@ -13,6 +13,11 @@ namespace TodoList.Server.Controllers
     [ApiController]
     public class TodoItemController : ControllerBase
     {
+        private static readonly string USER_ID_PARSE_FAIL = "Wrong id";
+        private static readonly string ITEM_NOT_FOUND = "Item not found";
+        private static readonly string ITEM_NOT_AUTHORIZED = "Item not authorized";
+        private static Guid GetUserIdOrEmpty(ClaimsPrincipal user) => Guid.TryParse(user.FindFirstValue(JwtRegisteredClaimNames.Jti), out Guid id) ? id : Guid.Empty;
+
         private readonly ITodoItemService _todoItemService;
         private readonly ILogger<TodoItemController> _logger;
 
@@ -26,9 +31,10 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public IActionResult Get(int? skip, int? take)
         {
-            if (!Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Jti), out Guid id))
+            Guid id = GetUserIdOrEmpty(User);
+            if (id == Guid.Empty)
             {
-                return BadRequest(new { error_message = "Wrong id" });
+                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
             }
 
             IAsyncEnumerable<TodoItem> items;
@@ -59,41 +65,117 @@ namespace TodoList.Server.Controllers
             return Ok(new { items });
         }
 
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetSingleAsync(int itemId)
+        {
+            Guid id = GetUserIdOrEmpty(User);
+            if (id == Guid.Empty)
+            {
+                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+            }
+
+            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+            if (item == null)
+            {
+                return NotFound(new { error_message = ITEM_NOT_FOUND });
+            }
+
+            if (item.UserId != id)
+            {
+                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
+            }
+
+            return Ok(new { item });
+        }
+
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> PostAsync(string name)
+        public async Task<IActionResult> PostAsync([FromForm] string name)
         {
-            if (Guid.TryParse(User.FindFirstValue(JwtRegisteredClaimNames.Jti), out Guid userId))
+            Guid id = GetUserIdOrEmpty(User);
+            if (id == Guid.Empty)
             {
-                await _todoItemService.AddAsync(name, userId);
-                return CreatedAtAction("Get", "TodoItem");
+                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
             }
-            return BadRequest();
+
+            int itemId = await _todoItemService.AddAsync(name, id);
+            return CreatedAtAction("GetSingle", "TodoItem", routeValues: new { itemId }, value: null);
         }
 
         [HttpPatch]
         [Authorize]
-        public async Task<IActionResult> PatchAsync(int itemId, string newName)
+        public async Task<IActionResult> PatchAsync([FromForm] int itemId, [FromForm] string newName)
         {
+            Guid id = GetUserIdOrEmpty(User);
+            if (id == Guid.Empty)
+            {
+                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+            }
+
+            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+
+            if (item == null)
+            {
+                return NotFound(new { error_message = ITEM_NOT_FOUND });
+            }
+
+            if (item.UserId != id)
+            {
+                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
+            }
+
             await _todoItemService.EditNameAsync(itemId, newName);
-            return Ok();
+
+            return Ok(new { itemId, name = newName });
         }
 
-        [Authorize]
         [HttpDelete]
-        public async Task<IActionResult> DeleteAsync(int itemId)
+        [Authorize]
+        public async Task<IActionResult> DeleteAsync([FromForm] int itemId)
         {
+            Guid id = GetUserIdOrEmpty(User);
+            if (id == Guid.Empty)
+            {
+                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+            }
+
+            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+
+            if (item == null)
+            {
+                return NotFound(new { error_message = ITEM_NOT_FOUND });
+            }
+
+            if (item.UserId != id)
+            {
+                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
+            }
+
             await _todoItemService.DeleteAsync(itemId);
-            return Ok();
+
+            return Ok(new { itemId });
         }
 
         [HttpPost]
-        public async Task<IActionResult> ToggleCompleteAsync(int itemId)
+        [Authorize]
+        public async Task<IActionResult> ToggleCompleteAsync([FromForm] int itemId)
         {
+            Guid id = GetUserIdOrEmpty(User);
+            if (id == Guid.Empty)
+            {
+                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+            }
+
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
             if (item == null)
             {
-                return NotFound(new { error_message = "Item not found" });
+                return NotFound(new { error_message = ITEM_NOT_FOUND });
+            }
+
+            if (item.UserId != id)
+            {
+                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
             }
 
             if (item.IsComplete)
@@ -105,7 +187,7 @@ namespace TodoList.Server.Controllers
                 await _todoItemService.CompleteAsync(itemId);
             }
 
-            return Accepted();
+            return Ok(new { itemId, isComplete = !item.IsComplete });
         }
     }
 }

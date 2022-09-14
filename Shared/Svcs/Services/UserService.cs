@@ -90,7 +90,6 @@ namespace TodoList.Shared.Svcs.Services
             if (user != null)
             {
                 user.IsEmailVerified = true;
-                _dbContext.Users.Update(user);
                 await _dbContext.SaveChangesAsync();
             }
         }
@@ -115,7 +114,6 @@ namespace TodoList.Shared.Svcs.Services
             byte[] newHash = PasswordHasher.HashPassword(newPassword, salt, _hashSettings);
             string newHashBase64 = Convert.ToBase64String(newHash);
             user.PasswordHashBase64 = newHashBase64;
-            _dbContext.Users.Update(user);
             await _dbContext.SaveChangesAsync();
 
             return true;
@@ -130,7 +128,6 @@ namespace TodoList.Shared.Svcs.Services
             }
 
             user.Name = newName;
-            _dbContext.Users.Update(user);
             await _dbContext.SaveChangesAsync();
 
             return true;
@@ -146,7 +143,6 @@ namespace TodoList.Shared.Svcs.Services
 
             user.Email = newEmail;
             user.IsEmailVerified = false;
-            _dbContext.Users.Update(user);
             await _dbContext.SaveChangesAsync();
 
             return true;

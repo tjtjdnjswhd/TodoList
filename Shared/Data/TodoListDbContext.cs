@@ -16,7 +16,11 @@ namespace TodoList.Shared.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            modelBuilder.Entity<TodoItem>();
+            modelBuilder.Entity<TodoItem>(builder =>
+            {
+                builder.Property(t => t.CreatedAt).HasDefaultValueSql("GETDATE()");
+                builder.Property(t => t.IsComplete).HasDefaultValue(false);
+            });
             modelBuilder.Entity<Role>();
             modelBuilder.Entity<User>();
         }

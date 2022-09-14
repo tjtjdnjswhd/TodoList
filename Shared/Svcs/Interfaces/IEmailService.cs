@@ -1,6 +1,4 @@
-﻿using System.Security.Cryptography.X509Certificates;
-
-using TodoList.Shared.Models;
+﻿using TodoList.Shared.Models;
 
 namespace TodoList.Shared.Svcs.Interfaces
 {
