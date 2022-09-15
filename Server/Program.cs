@@ -5,6 +5,7 @@ using Microsoft.OpenApi.Models;
 
 using System.Text;
 
+using TodoList.Server;
 using TodoList.Shared.Data;
 using TodoList.Shared.Settings;
 using TodoList.Shared.Svcs.Interfaces;
@@ -32,6 +33,8 @@ builder.Services.AddSqlServer<TodoListDbContext>(connectionString, option =>
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
 builder.Services.Configure<PasswordHashSettings>(builder.Configuration.GetSection("PasswordHashSettings"));
 builder.Services.Configure<DistributedCacheEntryOptions>(builder.Configuration.GetSection("CacheOptions"));
+
+builder.Services.AddAutoMapper(typeof(TodoItemProfile));
 
 builder.Services.AddAuthentication(option =>
 {

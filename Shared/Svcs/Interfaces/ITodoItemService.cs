@@ -5,10 +5,8 @@ namespace TodoList.Shared.Svcs.Interfaces
     public interface ITodoItemService
     {
         public Task<TodoItem?> GetByIdOrNullAsync(int itemId);
-        public IAsyncEnumerable<TodoItem> GetByUserId(Guid userId);
-        public IAsyncEnumerable<TodoItem> GetByUserId(Guid userId, int skip = 0, int take = int.MaxValue);
-        public IEnumerable<TodoItem> GetChangedByUserId(Guid userId);
-        public Task<int> AddAsync(string name, Guid userId);
+        public IEnumerable<TodoItem> GetByUserId(Guid userId);
+        public Task<int> AddAsync(Guid userId, string name);
         public Task EditNameAsync(int itemId, string name);
         public Task DeleteAsync(int itemId);
         public Task CompleteAsync(int itemId);
