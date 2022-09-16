@@ -21,7 +21,17 @@ namespace TodoList.Shared.Data
                 builder.Property(t => t.CreatedAt).HasDefaultValueSql("GETDATE()");
                 builder.Property(t => t.IsComplete).HasDefaultValue(false);
             });
-            modelBuilder.Entity<Role>();
+            modelBuilder.Entity<Role>().HasData(
+                new Role()
+                {
+                    Name = "User",
+                    Priority = 1
+                },
+                new Role()
+                {
+                    Name = "Admin",
+                    Priority = 0
+                });
             modelBuilder.Entity<User>();
         }
     }

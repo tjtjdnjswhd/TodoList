@@ -35,7 +35,7 @@ namespace TodoList.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> RefreshAsync([FromHeader(Name = "access_token")] string accessToken, [FromHeader(Name = "refresh_token")] string refreshToken)
+        public async Task<IActionResult> RefreshAsync([FromForm(Name = "access_token")] string accessToken, [FromForm(Name = "refresh_token")] string refreshToken)
         {
             string? expiredAccessToken = await _cache.GetStringAsync(refreshToken);
             string errorMessage;

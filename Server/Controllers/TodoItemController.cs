@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using System.IdentityModel.Tokens.Jwt;
@@ -83,7 +84,7 @@ namespace TodoList.Server.Controllers
 
             if (item.UserId != id)
             {
-                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
+                return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
             return Ok(new { item });
@@ -122,7 +123,7 @@ namespace TodoList.Server.Controllers
 
             if (item.UserId != id)
             {
-                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
+                return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
             await _todoItemService.EditNameAsync(itemId, newName);
@@ -149,7 +150,7 @@ namespace TodoList.Server.Controllers
 
             if (item.UserId != id)
             {
-                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
+                return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
             await _todoItemService.DeleteAsync(itemId);
@@ -175,7 +176,7 @@ namespace TodoList.Server.Controllers
 
             if (item.UserId != id)
             {
-                return Unauthorized(new { error_message = ITEM_NOT_AUTHORIZED });
+                return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
             if (item.IsComplete)
