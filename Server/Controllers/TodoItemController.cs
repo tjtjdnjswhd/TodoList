@@ -1,11 +1,15 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using AutoMapper;
+
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
+using TodoList.Shared.Data.Dtos;
 using TodoList.Shared.Data.Models;
+using TodoList.Shared.Models;
 using TodoList.Shared.Svcs.Interfaces;
 
 namespace TodoList.Server.Controllers
@@ -16,70 +20,64 @@ namespace TodoList.Server.Controllers
     {
         private static readonly string USER_ID_PARSE_FAIL = "Wrong id";
         private static readonly string ITEM_NOT_FOUND = "Item not found";
-        private static readonly string ITEM_NOT_AUTHORIZED = "Item not authorized";
+
         private static Guid GetUserIdOrEmpty(ClaimsPrincipal user) => Guid.TryParse(user.FindFirstValue(JwtRegisteredClaimNames.Jti), out Guid id) ? id : Guid.Empty;
 
         private readonly ITodoItemService _todoItemService;
         private readonly ILogger<TodoItemController> _logger;
+        private readonly IMapper _mapper;
 
-        public TodoItemController(ITodoItemService todoItemService, ILogger<TodoItemController> logger)
+        public TodoItemController(ITodoItemService todoItemService, ILogger<TodoItemController> logger, IMapper mapper)
         {
             _todoItemService = todoItemService;
             _logger = logger;
+            _mapper = mapper;
         }
 
         [HttpGet]
         [Authorize]
-        public IActionResult Get(int? skip, int? take)
+        public IActionResult Get()
         {
+            Response<IEnumerable<TodoItemDto>> response = new();
+
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+                response.IsSuccess = false;
+                response.Message = USER_ID_PARSE_FAIL;
+                return BadRequest(response);
             }
 
-            IAsyncEnumerable<TodoItem> items;
+            IEnumerable<TodoItem> items = _todoItemService.GetByUserId(id);
 
-            if (skip == null)
-            {
-                if (take == null)
-                {
-                    items = _todoItemService.GetByUserId(id);
-                }
-                else
-                {
-                    items = _todoItemService.GetByUserId(id, take: take.Value);
-                }
-            }
-            else
-            {
-                if (take == null)
-                {
-                    items = _todoItemService.GetByUserId(id, skip: skip.Value);
-                }
-                else
-                {
-                    items = _todoItemService.GetByUserId(id, skip: skip.Value, take: take.Value);
-                }
-            }
+            IEnumerable<TodoItemDto> itemDtos = _mapper.Map<IEnumerable<TodoItem>, IEnumerable<TodoItemDto>>(items);
+            response.Data = itemDtos;
+            response.IsSuccess = true;
 
-            return Ok(new { items });
+            return Ok(response);
         }
 
         [HttpGet]
         [Authorize]
         public async Task<IActionResult> GetSingleAsync(int itemId)
         {
+            Response<TodoItemDto> response = new();
+
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+                response.IsSuccess = false;
+                response.Message = USER_ID_PARSE_FAIL;
+                return BadRequest(response);
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+
             if (item == null)
             {
-                return NotFound(new { error_message = ITEM_NOT_FOUND });
+                response.IsSuccess = false;
+                response.Message = ITEM_NOT_FOUND;
+                return NotFound(response);
             }
 
             if (item.UserId != id)
@@ -87,20 +85,28 @@ namespace TodoList.Server.Controllers
                 return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
-            return Ok(new { item });
+            TodoItemDto itemDto = _mapper.Map<TodoItem, TodoItemDto>(item);
+            response.Data = itemDto;
+            response.IsSuccess = true;
+
+            return Ok(response);
         }
 
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> PostAsync([FromForm] string name)
         {
+            Response<object> response = new();
+
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+                response.IsSuccess = false;
+                response.Message = USER_ID_PARSE_FAIL;
+                return BadRequest(response);
             }
 
-            int itemId = await _todoItemService.AddAsync(name, id);
+            int itemId = await _todoItemService.AddAsync(id, name);
             return CreatedAtAction("GetSingle", "TodoItem", routeValues: new { itemId }, value: null);
         }
 
@@ -108,17 +114,23 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public async Task<IActionResult> PatchAsync([FromForm] int itemId, [FromForm] string newName)
         {
+            Response<object> response = new();
+
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+                response.IsSuccess = false;
+                response.Message = USER_ID_PARSE_FAIL;
+                return BadRequest(response);
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
 
             if (item == null)
             {
-                return NotFound(new { error_message = ITEM_NOT_FOUND });
+                response.IsSuccess = false;
+                response.Message = ITEM_NOT_FOUND;
+                return NotFound(response);
             }
 
             if (item.UserId != id)
@@ -127,25 +139,32 @@ namespace TodoList.Server.Controllers
             }
 
             await _todoItemService.EditNameAsync(itemId, newName);
+            response.Data = new { itemId, name = newName };
 
-            return Ok(new { itemId, name = newName });
+            return Ok(response);
         }
 
         [HttpDelete]
         [Authorize]
         public async Task<IActionResult> DeleteAsync([FromForm] int itemId)
         {
+            Response<object> response = new();
+
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+                response.IsSuccess = false;
+                response.Message = USER_ID_PARSE_FAIL;
+                return BadRequest(response);
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
 
             if (item == null)
             {
-                return NotFound(new { error_message = ITEM_NOT_FOUND });
+                response.IsSuccess = false;
+                response.Message = ITEM_NOT_FOUND;
+                return NotFound(response);
             }
 
             if (item.UserId != id)
@@ -155,23 +174,31 @@ namespace TodoList.Server.Controllers
 
             await _todoItemService.DeleteAsync(itemId);
 
-            return Ok(new { itemId });
+            response.Data = new { itemId };
+            return Ok(response);
         }
 
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> ToggleCompleteAsync([FromForm] int itemId)
         {
+            Response<object> response = new();
+
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                return BadRequest(new { error_message = USER_ID_PARSE_FAIL });
+                response.IsSuccess = false;
+                response.Message = USER_ID_PARSE_FAIL;
+                return BadRequest(response);
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+
             if (item == null)
             {
-                return NotFound(new { error_message = ITEM_NOT_FOUND });
+                response.IsSuccess = false;
+                response.Message = ITEM_NOT_FOUND;
+                return NotFound(response);
             }
 
             if (item.UserId != id)
@@ -188,7 +215,9 @@ namespace TodoList.Server.Controllers
                 await _todoItemService.CompleteAsync(itemId);
             }
 
-            return Ok(new { itemId, isComplete = !item.IsComplete });
+            response.Data = new { itemId, isComplete = !item.IsComplete };
+
+            return Ok(response);
         }
     }
 }

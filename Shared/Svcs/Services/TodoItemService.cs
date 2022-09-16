@@ -20,25 +20,15 @@ namespace TodoList.Shared.Svcs.Services
 
         public async Task<TodoItem?> GetByIdOrNullAsync(int itemId)
         {
-            return await _dbContext.TodoItems.AsNoTracking().SingleOrDefaultAsync(t => t.Id == itemId);
+            return await _dbContext.TodoItems.AsNoTracking().FirstOrDefaultAsync(t => t.Id == itemId);
         }
 
-        public IAsyncEnumerable<TodoItem> GetByUserId(Guid userId)
+        public IEnumerable<TodoItem> GetByUserId(Guid userId)
         {
-            return _dbContext.TodoItems.Where(t => t.UserId == userId).AsAsyncEnumerable();
+            return _dbContext.TodoItems.Where(t => t.UserId == userId).AsNoTracking();
         }
 
-        public IAsyncEnumerable<TodoItem> GetByUserId(Guid userId, int skip = 0, int take = int.MaxValue)
-        {
-            return _dbContext.TodoItems.Where(t => t.UserId == userId).Skip(skip).Take(take).AsAsyncEnumerable();
-        }
-
-        public IEnumerable<TodoItem> GetChangedByUserId(Guid userId)
-        {
-            return _dbContext.ChangeTracker.Entries<TodoItem>().Select(t => t.Entity).Where(t => t.UserId == userId);
-        }
-
-        public async Task<int> AddAsync(string name, Guid userId)
+        public async Task<int> AddAsync(Guid userId, string name)
         {
             if (!_dbContext.Users.Any(u => u.Id == userId))
             {
