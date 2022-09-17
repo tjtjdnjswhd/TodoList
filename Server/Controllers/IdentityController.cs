@@ -1,4 +1,8 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 
 using System.Text;
@@ -22,30 +26,32 @@ namespace TodoList.Server.Controllers
         private readonly IEmailService _emailService;
         private readonly IVerifyCodeService _verifyCodeService;
         private readonly IDistributedCache _cache;
+        private readonly IMapper _mapper;
         private readonly ILogger<IdentityController> _logger;
 
-        public IdentityController(IUserService userService, IJwtService jwtService, IEmailService emailService, IVerifyCodeService verifyCodeService, IDistributedCache cache, ILogger<IdentityController> logger)
+        public IdentityController(IUserService userService, IJwtService jwtService, IEmailService emailService, IVerifyCodeService verifyCodeService, IDistributedCache cache, IMapper mapper, ILogger<IdentityController> logger)
         {
             _userService = userService;
             _jwtService = jwtService;
             _emailService = emailService;
             _verifyCodeService = verifyCodeService;
             _cache = cache;
+            _mapper = mapper;
             _logger = logger;
         }
 
         [HttpPost]
-        public async Task<IActionResult> RefreshAsync([FromForm(Name = "access_token")] string accessToken, [FromForm(Name = "refresh_token")] string refreshToken)
+        public async Task<IActionResult> RefreshAsync([FromBody] AuthorizeToken authorizeToken)
         {
-            string? expiredAccessToken = await _cache.GetStringAsync(refreshToken);
+            string? expiredAccessToken = await _cache.GetStringAsync(authorizeToken.RefreshToken);
             string errorMessage;
-            if (expiredAccessToken != accessToken)
+            if (expiredAccessToken != authorizeToken.AccessToken)
             {
                 errorMessage = "Access token is not match";
             }
             else
             {
-                User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(accessToken);
+                User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(authorizeToken.AccessToken);
                 if (user == null)
                 {
                     errorMessage = "Wrong access token";
@@ -55,67 +61,128 @@ namespace TodoList.Server.Controllers
                     AuthorizeToken token = _jwtService.GenerateToken(user!, TokenExpiration);
                     await _cache.SetStringAsync(token.RefreshToken, token.AccessToken);
 
-                    return Ok(new { access_token = token.AccessToken, refresh_token = token.RefreshToken });
+                    return Ok(new Response<AuthorizeToken>()
+                    {
+                        Data = token,
+                        IsSuccess = true
+                    });
                 }
             }
 
-            return BadRequest(new { error_message = errorMessage });
+            return BadRequest(new Response()
+            {
+                Message = errorMessage
+            });
+        }
+
+        [HttpGet]
+        [Authorize]
+        public async Task<IActionResult> GetUserInfo()
+        {
+            string accessToken = Request.Headers.Authorization.First(a => a.StartsWith(JwtBearerDefaults.AuthenticationScheme)).Remove(0, JwtBearerDefaults.AuthenticationScheme.Length + 1);
+            User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(accessToken);
+            if (user == null)
+            {
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = "Wrong access token"
+                });
+            }
+
+            UserInfo userInfo = _mapper.Map<User, UserInfo>(user);
+
+            return Ok(new Response<UserInfo>()
+            {
+                Data = userInfo,
+                IsSuccess = true
+            });
         }
 
         [HttpPost]
-        public async Task<IActionResult> LoginAsync([FromForm] string email, [FromForm] string password)
+        public async Task<IActionResult> LoginAsync([FromBody] LoginInfo loginInfo)
         {
             string errorMessage;
-            if (!await _userService.IsEmailExistAsync(email))
+            if (!await _userService.IsEmailExistAsync(loginInfo.Email))
             {
                 errorMessage = "Not exist email";
             }
-            else if (!await _userService.MatchPassword(email, password))
+            else if (!await _userService.MatchPassword(loginInfo))
             {
                 errorMessage = "Wrong password";
             }
             else
             {
-                User? user = await _userService.GetUserByEmailOrNullAsync(email);
+                User? user = await _userService.GetUserByEmailOrNullAsync(loginInfo.Email);
                 AuthorizeToken token = _jwtService.GenerateToken(user!, TokenExpiration);
                 await _cache.SetStringAsync(token.RefreshToken, token.AccessToken);
 
-                return Ok(new { access_token = token.AccessToken, refresh_token = token.RefreshToken });
+                return Ok(new Response<AuthorizeToken>()
+                {
+                    Data = token,
+                    IsSuccess = true
+                });
             }
 
-            return BadRequest(new { error_message = errorMessage });
+            return BadRequest(new Response()
+            {
+                Message = errorMessage
+            });
         }
 
         [HttpPost]
-        public async Task<IActionResult> SignupAsync([FromForm] string email, [FromForm] string password, [FromForm] string name)
+        public async Task<IActionResult> SignupAsync(SignupInfo signupInfo)
         {
             string errorMessage;
-            if (await _userService.IsEmailExistAsync(email))
+            if (await _userService.IsEmailExistAsync(signupInfo.Email))
             {
                 errorMessage = "Duplicate email";
             }
-            else if (await _userService.IsNameExistAsync(name))
+            else if (await _userService.IsNameExistAsync(signupInfo.Name))
             {
                 errorMessage = "Duplicate name";
             }
             else
             {
-                Guid? id = await _userService.SignupAsync(email, password, name);
-                return Accepted(new { id });
+                Guid? id = await _userService.SignupAsync(signupInfo);
+                if (id == null)
+                {
+                    return BadRequest();
+                }
+
+                Response<Guid> response = new()
+                {
+                    Data = id.Value,
+                    IsSuccess = true
+                };
+
+                return Accepted(response);
             }
-            return BadRequest(new { error_message = errorMessage });
+
+            return BadRequest(new Response()
+            {
+                Message = errorMessage
+            });
         }
 
         [HttpPost]
-        public async Task<IActionResult> ExpireRefreshTokenAsync([FromForm(Name = "access_token")] string accessToken, [FromForm(Name = "refresh_token")] string refreshToken)
+        public async Task<IActionResult> ExpireRefreshTokenAsync([FromBody] AuthorizeToken authorizeToken)
         {
-            string token = await _cache.GetStringAsync(refreshToken);
-            if (token == accessToken)
+            string token = await _cache.GetStringAsync(authorizeToken.RefreshToken);
+            if (token == authorizeToken.AccessToken)
             {
-                await _cache.RemoveAsync(refreshToken);
-                return Ok();
+                await _cache.RemoveAsync(authorizeToken.RefreshToken);
+                return Ok(new Response()
+                {
+                    IsSuccess = true,
+                    Message = "Refresh token expired"
+                });
             }
-            return BadRequest(new { error_message = "Access token is not match" });
+
+            return BadRequest(new Response()
+            {
+                Message = "Access token is not match"
+            });
         }
 
         [HttpPost]
@@ -129,7 +196,7 @@ namespace TodoList.Server.Controllers
                 $@"<p>
                      <form action=""{verifyUrl}"" method=""post"">
                        <input type=""hidden"" value=""{email}"" name=""email""/>
-                       <button value=""{code}"" name=""code"" type=""submit"">인증하려면 클릭하세요</button> 
+                       <button value=""{code}"" name=""code"" type=""submit"">인증하려면 클릭하세요</button>
                      </form>
                    </p>";
 
@@ -157,7 +224,10 @@ namespace TodoList.Server.Controllers
             }
             else
             {
-                return BadRequest(new { error_message = "Fail to verify email" });
+                return BadRequest(new Response()
+                {
+                    Message = "Fail to verify email"
+                });
             }
         }
     }

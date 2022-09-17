@@ -34,7 +34,7 @@ builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailS
 builder.Services.Configure<PasswordHashSettings>(builder.Configuration.GetSection("PasswordHashSettings"));
 builder.Services.Configure<DistributedCacheEntryOptions>(builder.Configuration.GetSection("CacheOptions"));
 
-builder.Services.AddAutoMapper(typeof(TodoItemProfile));
+builder.Services.AddAutoMapper(typeof(CustomProfile));
 
 builder.Services.AddAuthentication(option =>
 {

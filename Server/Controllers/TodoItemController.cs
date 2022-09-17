@@ -38,21 +38,25 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public IActionResult Get()
         {
-            Response<IEnumerable<TodoItemDto>> response = new();
 
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                response.IsSuccess = false;
-                response.Message = USER_ID_PARSE_FAIL;
-                return BadRequest(response);
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = USER_ID_PARSE_FAIL
+                });
             }
 
             IEnumerable<TodoItem> items = _todoItemService.GetByUserId(id);
 
             IEnumerable<TodoItemDto> itemDtos = _mapper.Map<IEnumerable<TodoItem>, IEnumerable<TodoItemDto>>(items);
-            response.Data = itemDtos;
-            response.IsSuccess = true;
+            Response<IEnumerable<TodoItemDto>> response = new()
+            {
+                Data = itemDtos,
+                IsSuccess = true
+            };
 
             return Ok(response);
         }
@@ -61,23 +65,25 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public async Task<IActionResult> GetSingleAsync(int itemId)
         {
-            Response<TodoItemDto> response = new();
-
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                response.IsSuccess = false;
-                response.Message = USER_ID_PARSE_FAIL;
-                return BadRequest(response);
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = USER_ID_PARSE_FAIL
+                });
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
 
             if (item == null)
             {
-                response.IsSuccess = false;
-                response.Message = ITEM_NOT_FOUND;
-                return NotFound(response);
+                return NotFound(new Response()
+                {
+                    IsSuccess = false,
+                    Message = ITEM_NOT_FOUND
+                });
             }
 
             if (item.UserId != id)
@@ -86,8 +92,11 @@ namespace TodoList.Server.Controllers
             }
 
             TodoItemDto itemDto = _mapper.Map<TodoItem, TodoItemDto>(item);
-            response.Data = itemDto;
-            response.IsSuccess = true;
+            Response<TodoItemDto> response = new()
+            {
+                Data = itemDto,
+                IsSuccess = true
+            };
 
             return Ok(response);
         }
@@ -96,14 +105,14 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public async Task<IActionResult> PostAsync([FromForm] string name)
         {
-            Response<object> response = new();
-
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                response.IsSuccess = false;
-                response.Message = USER_ID_PARSE_FAIL;
-                return BadRequest(response);
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = USER_ID_PARSE_FAIL
+                });
             }
 
             int itemId = await _todoItemService.AddAsync(id, name);
@@ -114,23 +123,26 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public async Task<IActionResult> PatchAsync([FromForm] int itemId, [FromForm] string newName)
         {
-            Response<object> response = new();
 
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                response.IsSuccess = false;
-                response.Message = USER_ID_PARSE_FAIL;
-                return BadRequest(response);
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = USER_ID_PARSE_FAIL
+                });
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
 
             if (item == null)
             {
-                response.IsSuccess = false;
-                response.Message = ITEM_NOT_FOUND;
-                return NotFound(response);
+                return NotFound(new Response()
+                {
+                    IsSuccess = false,
+                    Message = ITEM_NOT_FOUND
+                });
             }
 
             if (item.UserId != id)
@@ -139,7 +151,12 @@ namespace TodoList.Server.Controllers
             }
 
             await _todoItemService.EditNameAsync(itemId, newName);
-            response.Data = new { itemId, name = newName };
+
+            Response<object> response = new()
+            {
+                Data = new { itemId, name = newName },
+                IsSuccess = true 
+            };
 
             return Ok(response);
         }
@@ -148,23 +165,25 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteAsync([FromForm] int itemId)
         {
-            Response<object> response = new();
-
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                response.IsSuccess = false;
-                response.Message = USER_ID_PARSE_FAIL;
-                return BadRequest(response);
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = USER_ID_PARSE_FAIL
+                });
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
 
             if (item == null)
             {
-                response.IsSuccess = false;
-                response.Message = ITEM_NOT_FOUND;
-                return NotFound(response);
+                return NotFound(new Response()
+                {
+                    IsSuccess = false,
+                    Message = ITEM_NOT_FOUND
+                });
             }
 
             if (item.UserId != id)
@@ -174,7 +193,12 @@ namespace TodoList.Server.Controllers
 
             await _todoItemService.DeleteAsync(itemId);
 
-            response.Data = new { itemId };
+            Response<object> response = new()
+            {
+                Data = new { itemId },
+                IsSuccess = true
+            };
+
             return Ok(response);
         }
 
@@ -182,23 +206,26 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public async Task<IActionResult> ToggleCompleteAsync([FromForm] int itemId)
         {
-            Response<object> response = new();
 
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
-                response.IsSuccess = false;
-                response.Message = USER_ID_PARSE_FAIL;
-                return BadRequest(response);
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = USER_ID_PARSE_FAIL
+                });
             }
 
             TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
 
             if (item == null)
             {
-                response.IsSuccess = false;
-                response.Message = ITEM_NOT_FOUND;
-                return NotFound(response);
+                return NotFound(new Response()
+                {
+                    IsSuccess = false,
+                    Message = ITEM_NOT_FOUND
+                });
             }
 
             if (item.UserId != id)
@@ -215,7 +242,11 @@ namespace TodoList.Server.Controllers
                 await _todoItemService.CompleteAsync(itemId);
             }
 
-            response.Data = new { itemId, isComplete = !item.IsComplete };
+            Response<object> response = new()
+            {
+                Data = new { itemId, isComplete = !item.IsComplete },
+                IsSuccess = true
+            };
 
             return Ok(response);
         }

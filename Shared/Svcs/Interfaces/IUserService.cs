@@ -1,4 +1,5 @@
 ﻿using TodoList.Shared.Data.Models;
+using TodoList.Shared.Models;
 
 namespace TodoList.Shared.Svcs.Interfaces
 {
@@ -9,8 +10,8 @@ namespace TodoList.Shared.Svcs.Interfaces
         public Task<User?> GetUserByNameOrNullAsync(string name);
         public Task<bool> IsNameExistAsync(string name);
         public Task<bool> IsEmailExistAsync(string email);
-        public Task<bool> MatchPassword(string email, string password);
-        public Task<Guid?> SignupAsync(string email, string password, string name);
+        public Task<bool> MatchPassword(LoginInfo loginInfo);
+        public Task<Guid?> SignupAsync(SignupInfo signupInfo);
         public Task VerifyEmailAsync(string email);
         public Task<bool> ChangePasswordAsync(Guid id, string oldPassword, string newPassword);
         public Task<bool> ChangeNameAsync(Guid id, string newName);

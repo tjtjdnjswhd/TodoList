@@ -1,0 +1,44 @@
+﻿@page "/login"
+@inject HttpClient httpClient
+@inject IJSRuntime jsRuntime
+@inject AuthenticationStateProvider authenticationStateProvider
+
+<PageTitle>Login</PageTitle>
+
+<EditForm Model="loginInfo" OnValidSubmit="LoginCallback">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <p>
+        <label for="email">Email </label>
+        <InputText id="email" @bind-Value="loginInfo.Email" />
+        <ValidationMessage For="() => loginInfo.Email" />
+    </p>
+    <p>
+        <label for="password">Password </label>
+        <InputText id="password" @bind-Value="loginInfo.Password" />
+        <ValidationMessage For="() => loginInfo.Password" />
+    </p>
+    <button type="submit">로그인</button>
+</EditForm>
+
+@code {
+    private LoginInfo loginInfo = new();
+
+    private async void LoginCallback()
+    {
+        HttpResponseMessage authorizeTokenResponse = await httpClient.PostAsJsonAsync("api/identity/login", loginInfo);
+        Response<AuthorizeToken>? authorizeTokenContent = await authorizeTokenResponse.Content.ReadFromJsonAsync<Response<AuthorizeToken>>();
+        if (!authorizeTokenResponse.IsSuccessStatusCode || authorizeTokenContent == null || !authorizeTokenContent.IsSuccess || authorizeTokenContent.Data == null)
+        {
+            await jsRuntime.InvokeVoidAsync("Alert", "이메일 혹은 비밀번호가 일치하지 않습니다");
+            loginInfo.Password = "";
+            return;
+        }
+
+        string accessToken = authorizeTokenContent!.Data!.AccessToken;
+
+        HttpResponseMessage userInfoResponse = await httpClient.SetHeaderAuthorization("Bearer", accessToken).GetAsync("api/identity/getuser");
+        Response<UserInfo>? userInfoContent = await userInfoResponse.Content.ReadFromJsonAsync<Response<UserInfo>>();
+    }
+}

@@ -6,6 +6,7 @@ using System.Runtime.Versioning;
 
 using TodoList.Shared.Data;
 using TodoList.Shared.Data.Models;
+using TodoList.Shared.Models;
 using TodoList.Shared.Settings;
 using TodoList.Shared.Svcs.Interfaces;
 using TodoList.Shared.Utils;
@@ -51,37 +52,37 @@ namespace TodoList.Shared.Svcs.Services
         }
 
         [UnsupportedOSPlatform("browser")]
-        public async Task<bool> MatchPassword(string email, string password)
+        public async Task<bool> MatchPassword(LoginInfo loginInfo)
         {
-            User? user = await GetUserByEmailOrNullAsync(email);
+            User? user = await GetUserByEmailOrNullAsync(loginInfo.Email);
             if (user == null)
             {
                 return false;
             }
 
-            string hashBase64 = Convert.ToBase64String(PasswordHasher.HashPassword(password, Convert.FromBase64String(user.SaltBase64), _hashSettings));
+            string hashBase64 = Convert.ToBase64String(PasswordHasher.HashPassword(loginInfo.Password, Convert.FromBase64String(user.SaltBase64), _hashSettings));
             return user.PasswordHashBase64 == hashBase64;
         }
 
         [UnsupportedOSPlatform("browser")]
-        public async Task<Guid?> SignupAsync(string email, string password, string name)
+        public async Task<Guid?> SignupAsync(SignupInfo signupInfo)
         {
-            if (await IsEmailExistAsync(email) || await IsNameExistAsync(name))
+            if (await IsEmailExistAsync(signupInfo.Email) || await IsNameExistAsync(signupInfo.Name))
             {
                 return null;
             }
 
             byte[] salt = PasswordHasher.GetSalt(_hashSettings.SaltLength);
-            byte[] hash = PasswordHasher.HashPassword(password, salt, _hashSettings);
+            byte[] hash = PasswordHasher.HashPassword(signupInfo.Password, salt, _hashSettings);
 
             string saltBase64 = Convert.ToBase64String(salt);
             string hashBase64 = Convert.ToBase64String(hash);
 
-            User user = new(email, name, false, hashBase64, saltBase64, "User");
+            User user = new(signupInfo.Email, signupInfo.Name, false, hashBase64, saltBase64, "User");
             _dbContext.Users.Add(user);
             _dbContext.SaveChanges();
 
-            return _dbContext.Users.Single(u => u.Email == email).Id;
+            return _dbContext.Users.Single(u => u.Email == signupInfo.Email).Id;
         }
 
         public async Task VerifyEmailAsync(string email)
