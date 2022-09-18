@@ -70,6 +70,14 @@ builder.Services.AddAuthentication(option =>
                 context.Response.Headers.Add("IS-TOKEN-EXPIRED", "true");
             }
             return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            if (context.Request.Cookies.TryGetValue("accessToken", out string? accessToken))
+            {
+                context.Token = accessToken;
+            }
+            return Task.CompletedTask;
         }
     };
 });

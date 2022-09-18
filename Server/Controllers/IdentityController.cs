@@ -1,12 +1,13 @@
 ﻿using AutoMapper;
 
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 
+using System.Security.Claims;
 using System.Text;
 
+using TodoList.Shared.Data.Dtos;
 using TodoList.Shared.Data.Models;
 using TodoList.Shared.Models;
 using TodoList.Shared.Svcs.Interfaces;
@@ -18,8 +19,8 @@ namespace TodoList.Server.Controllers
     public class IdentityController : ControllerBase
     {
         private static readonly int VERIFY_CODE_LENGTH = 16;
-
-        private static DateTimeOffset TokenExpiration => DateTimeOffset.Now.AddMinutes(30);
+        private static readonly int REFRESH_TOKEN_EXPIRATION_DAYS = 30;
+        private static DateTimeOffset AccessTokenExpiration => DateTimeOffset.Now.AddMinutes(30);
 
         private readonly IUserService _userService;
         private readonly IJwtService _jwtService;
@@ -41,29 +42,31 @@ namespace TodoList.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> RefreshAsync([FromBody] AuthorizeToken authorizeToken)
+        public async Task<IActionResult> RefreshAsync()
         {
-            string? expiredAccessToken = await _cache.GetStringAsync(authorizeToken.RefreshToken);
+            AuthorizeToken cookieToken = GetCookieToken();
+
+            string? expiredAccessToken = await _cache.GetStringAsync(cookieToken.RefreshToken);
             string errorMessage;
-            if (expiredAccessToken != authorizeToken.AccessToken)
+
+            if (expiredAccessToken != cookieToken.AccessToken)
             {
                 errorMessage = "Access token is not match";
             }
             else
             {
-                User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(authorizeToken.AccessToken);
+                User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(cookieToken.AccessToken);
                 if (user == null)
                 {
                     errorMessage = "Wrong access token";
                 }
                 else
                 {
-                    AuthorizeToken token = _jwtService.GenerateToken(user!, TokenExpiration);
-                    await _cache.SetStringAsync(token.RefreshToken, token.AccessToken);
+                    AuthorizeToken token = _jwtService.GenerateToken(user!, AccessTokenExpiration);
+                    await SetCookieTokenAsync(token);
 
-                    return Ok(new Response<AuthorizeToken>()
+                    return Ok(new Response()
                     {
-                        Data = token,
                         IsSuccess = true
                     });
                 }
@@ -72,30 +75,6 @@ namespace TodoList.Server.Controllers
             return BadRequest(new Response()
             {
                 Message = errorMessage
-            });
-        }
-
-        [HttpGet]
-        [Authorize]
-        public async Task<IActionResult> GetUserInfo()
-        {
-            string accessToken = Request.Headers.Authorization.First(a => a.StartsWith(JwtBearerDefaults.AuthenticationScheme)).Remove(0, JwtBearerDefaults.AuthenticationScheme.Length + 1);
-            User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(accessToken);
-            if (user == null)
-            {
-                return BadRequest(new Response()
-                {
-                    IsSuccess = false,
-                    Message = "Wrong access token"
-                });
-            }
-
-            UserInfo userInfo = _mapper.Map<User, UserInfo>(user);
-
-            return Ok(new Response<UserInfo>()
-            {
-                Data = userInfo,
-                IsSuccess = true
             });
         }
 
@@ -114,24 +93,48 @@ namespace TodoList.Server.Controllers
             else
             {
                 User? user = await _userService.GetUserByEmailOrNullAsync(loginInfo.Email);
-                AuthorizeToken token = _jwtService.GenerateToken(user!, TokenExpiration);
-                await _cache.SetStringAsync(token.RefreshToken, token.AccessToken);
+                AuthorizeToken token = _jwtService.GenerateToken(user!, AccessTokenExpiration);
+                await SetCookieTokenAsync(token);
 
-                return Ok(new Response<AuthorizeToken>()
+                return Ok(new Response()
                 {
-                    Data = token,
                     IsSuccess = true
                 });
             }
 
             return BadRequest(new Response()
             {
+                IsSuccess = false,
                 Message = errorMessage
             });
         }
 
+        [HttpGet]
+        [Authorize]
+        public IActionResult GetClaims()
+        {
+            AuthorizeToken cookieToken = GetCookieToken();
+            IEnumerable<Claim>? claims = _jwtService.GetClaimsByTokenOrNull(cookieToken.AccessToken);
+            if (claims == null)
+            {
+                return BadRequest(new Response()
+                {
+                    IsSuccess = false,
+                    Message = "Wrong access token"
+                });
+            }
+
+            IEnumerable<ClaimDto> claimDtos = _mapper.Map<IEnumerable<Claim>, IEnumerable<ClaimDto>>(claims);
+
+            return Ok(new Response<IEnumerable<ClaimDto>>()
+            {
+                IsSuccess = true,
+                Data = claimDtos
+            });
+        }
+
         [HttpPost]
-        public async Task<IActionResult> SignupAsync(SignupInfo signupInfo)
+        public async Task<IActionResult> SignupAsync([FromBody] SignupInfo signupInfo)
         {
             string errorMessage;
             if (await _userService.IsEmailExistAsync(signupInfo.Email))
@@ -166,12 +169,15 @@ namespace TodoList.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ExpireRefreshTokenAsync([FromBody] AuthorizeToken authorizeToken)
+        [Authorize]
+        public async Task<IActionResult> ExpireRefreshTokenAsync()
         {
-            string token = await _cache.GetStringAsync(authorizeToken.RefreshToken);
-            if (token == authorizeToken.AccessToken)
+            AuthorizeToken cookieToken = GetCookieToken();
+
+            string token = await _cache.GetStringAsync(cookieToken.RefreshToken);
+            if (token == cookieToken.AccessToken)
             {
-                await _cache.RemoveAsync(authorizeToken.RefreshToken);
+                await _cache.RemoveAsync(cookieToken.RefreshToken);
                 return Ok(new Response()
                 {
                     IsSuccess = true,
@@ -229,6 +235,38 @@ namespace TodoList.Server.Controllers
                     Message = "Fail to verify email"
                 });
             }
+        }
+
+        private AuthorizeToken GetCookieToken()
+        {
+            string accessToken = Request.Cookies["accessToken"] ?? string.Empty;
+            string refreshToken = Request.Cookies["refreshToken"] ?? string.Empty;
+            return new AuthorizeToken(accessToken, refreshToken);
+        }
+
+        private async Task SetCookieTokenAsync(AuthorizeToken token)
+        {
+            TimeSpan expirationDays = TimeSpan.FromDays(REFRESH_TOKEN_EXPIRATION_DAYS);
+
+            await _cache.SetStringAsync(token.RefreshToken, token.AccessToken, new DistributedCacheEntryOptions()
+            {
+                SlidingExpiration = expirationDays
+            });
+
+            CookieOptions cookieOptions = new()
+            {
+                HttpOnly = true,
+                Secure = true,
+                MaxAge = expirationDays
+            };
+
+            Response.Cookies.Append("accessToken", token.AccessToken, cookieOptions);
+            Response.Cookies.Append("refreshToken", token.RefreshToken, cookieOptions);
+            Response.Cookies.Append("expiration", "a", new CookieOptions()
+            {
+                Secure = true,
+                MaxAge = expirationDays,
+            });
         }
     }
 }

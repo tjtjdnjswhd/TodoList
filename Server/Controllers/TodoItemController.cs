@@ -38,7 +38,6 @@ namespace TodoList.Server.Controllers
         [Authorize]
         public IActionResult Get()
         {
-
             Guid id = GetUserIdOrEmpty(User);
             if (id == Guid.Empty)
             {
@@ -155,7 +154,7 @@ namespace TodoList.Server.Controllers
             Response<object> response = new()
             {
                 Data = new { itemId, name = newName },
-                IsSuccess = true 
+                IsSuccess = true
             };
 
             return Ok(response);

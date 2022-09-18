@@ -1,9 +1,17 @@
-﻿@page "/login"
+﻿@page "/login/{returnurl?}"
+
 @inject HttpClient httpClient
 @inject IJSRuntime jsRuntime
-@inject AuthenticationStateProvider authenticationStateProvider
+@inject NavigationManager navigationManager
+@inject IAuthenticationService authenticationService
 
 <PageTitle>Login</PageTitle>
+
+<AuthorizeView>
+    @{
+        navigationManager.NavigateTo(ReturnUrl ?? "/");
+    }
+</AuthorizeView>
 
 <EditForm Model="loginInfo" OnValidSubmit="LoginCallback">
     <DataAnnotationsValidator />
@@ -25,20 +33,32 @@
 @code {
     private LoginInfo loginInfo = new();
 
+    [Parameter]
+    public string? ReturnUrl { get; set; }
+
     private async void LoginCallback()
     {
         HttpResponseMessage authorizeTokenResponse = await httpClient.PostAsJsonAsync("api/identity/login", loginInfo);
-        Response<AuthorizeToken>? authorizeTokenContent = await authorizeTokenResponse.Content.ReadFromJsonAsync<Response<AuthorizeToken>>();
-        if (!authorizeTokenResponse.IsSuccessStatusCode || authorizeTokenContent == null || !authorizeTokenContent.IsSuccess || authorizeTokenContent.Data == null)
+
+        Response? authorizeTokenContent = await authorizeTokenResponse.Content.ReadFromJsonAsync<Response>();
+        if (!authorizeTokenResponse.IsSuccessStatusCode || (!authorizeTokenContent?.IsSuccess ?? true))
         {
             await jsRuntime.InvokeVoidAsync("Alert", "이메일 혹은 비밀번호가 일치하지 않습니다");
             loginInfo.Password = "";
+            StateHasChanged();
             return;
         }
 
-        string accessToken = authorizeTokenContent!.Data!.AccessToken;
+        HttpResponseMessage claimsResponse = await httpClient.GetAsync("api/identity/getclaims");
+        Response<IEnumerable<ClaimDto>>? claimsContent = await claimsResponse.Content.ReadFromJsonAsync<Response<IEnumerable<ClaimDto>>>();
 
-        HttpResponseMessage userInfoResponse = await httpClient.SetHeaderAuthorization("Bearer", accessToken).GetAsync("api/identity/getuser");
-        Response<UserInfo>? userInfoContent = await userInfoResponse.Content.ReadFromJsonAsync<Response<UserInfo>>();
+        if (claimsContent == null || !claimsResponse.IsSuccessStatusCode || (!claimsContent?.IsSuccess ?? true))
+        {
+            await jsRuntime.InvokeVoidAsync("Alert", "로그인에 실패했습니다. 다시 시도해 주세요");
+            return;
+        }
+
+        await authenticationService.SetClaimsAsync(claimsContent!.Data);
+        navigationManager.NavigateTo(ReturnUrl ?? "/");
     }
 }

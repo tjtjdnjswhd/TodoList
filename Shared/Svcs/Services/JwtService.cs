@@ -43,6 +43,17 @@ namespace TodoList.Shared.Svcs.Services
             return new AuthorizeToken(accessToken, refreshToken);
         }
 
+        public IEnumerable<Claim>? GetClaimsByTokenOrNull(string accessToken)
+        {
+            JwtSecurityTokenHandler tokenHandler = new();
+            if (tokenHandler.CanReadToken(accessToken))
+            {
+                IEnumerable<Claim> claims = tokenHandler.ReadJwtToken(accessToken).Claims;
+                return claims;
+            }
+            return null;
+        }
+
         public string GetRefreshToken()
         {
             byte[] randomNumber = new byte[32];
@@ -71,6 +82,7 @@ namespace TodoList.Shared.Svcs.Services
 
             JwtSecurityTokenHandler handler = new();
             ClaimsPrincipal principal = handler.ValidateToken(accessToken, parameters, out SecurityToken securityToken);
+
             if (securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
             {
                 return null;

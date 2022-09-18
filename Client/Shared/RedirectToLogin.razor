@@ -1,8 +1,8 @@
-﻿@inject NavigationManager Navigation
+﻿@inject NavigationManager NavigationManager
 
 @code {
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo($"authentication/login?returnUrl={Uri.EscapeDataString(Navigation.Uri)}");
+        NavigationManager.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(NavigationManager.Uri)}");
     }
 }

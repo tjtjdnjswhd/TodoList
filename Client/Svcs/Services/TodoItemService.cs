@@ -20,7 +20,7 @@ namespace TodoList.Client.Svcs.Services
 
         public async Task<IEnumerable<TodoItemDto>?> GetItemsByUserIdAsync(Guid userId)
         {
-            Response<IEnumerable<TodoItemDto>>? items = await _httpClient.GetFromJsonAsync<Response<IEnumerable<TodoItemDto>>>($"api/get?userid={userId}");
+            Response<IEnumerable<TodoItemDto>>? items = await _httpClient.GetFromJsonAsync<Response<IEnumerable<TodoItemDto>>>($"api/todoitem/get");
             if (items == null || !items.IsSuccess)
             {
                 return null;
