@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using Microsoft.Extensions.Options;
 
 using TodoList.Client;
 using TodoList.Client.Svcs.Interfaces;
@@ -14,11 +15,16 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<ILocalStorageService, LocalStorageService>();
 builder.Services.AddScoped<ITodoItemService, TodoItemService>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+builder.Services.AddTransient<TokenHandler>();
+//builder.Services.AddScoped(sp => new HttpClient()
+//{
+//    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
+//});
 
-builder.Services.AddScoped(sp => new HttpClient()
+builder.Services.AddHttpClient(Options.DefaultName, conf =>
 {
-    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
-});
+    conf.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
+}).AddHttpMessageHandler<TokenHandler>();
 
 builder.Services.AddOptions();
 builder.Services.AddAuthorizationCore();

@@ -1,64 +1,68 @@
 ﻿@page "/login/{returnurl?}"
 
-@inject HttpClient httpClient
 @inject IJSRuntime jsRuntime
-@inject NavigationManager navigationManager
+@inject NavigationManager navigation
 @inject IAuthenticationService authenticationService
 
 <PageTitle>Login</PageTitle>
 
-<AuthorizeView>
-    @{
-        navigationManager.NavigateTo(ReturnUrl ?? "/");
-    }
-</AuthorizeView>
-
 <EditForm Model="loginInfo" OnValidSubmit="LoginCallback">
     <DataAnnotationsValidator />
-    <ValidationSummary />
 
     <p>
         <label for="email">Email </label>
         <InputText id="email" @bind-Value="loginInfo.Email" />
         <ValidationMessage For="() => loginInfo.Email" />
     </p>
+
     <p>
         <label for="password">Password </label>
         <InputText id="password" @bind-Value="loginInfo.Password" />
         <ValidationMessage For="() => loginInfo.Password" />
     </p>
-    <button type="submit">로그인</button>
+
+    <button type="submit" disabled="@loading">
+        @if (loading)
+        {
+            <span class="spinner-border spinner-border-sm"></span>
+        }
+        로그인
+    </button>
 </EditForm>
 
-@code {
-    private LoginInfo loginInfo = new();
 
+@code {
     [Parameter]
     public string? ReturnUrl { get; set; }
 
+    [CascadingParameter]
+    protected Task<AuthenticationState> AuthState { get; set; }
+
+    private LoginInfo loginInfo = new();
+
+    private bool loading = false;
+
     private async void LoginCallback()
     {
-        HttpResponseMessage authorizeTokenResponse = await httpClient.PostAsJsonAsync("api/identity/login", loginInfo);
-
-        Response? authorizeTokenContent = await authorizeTokenResponse.Content.ReadFromJsonAsync<Response>();
-        if (!authorizeTokenResponse.IsSuccessStatusCode || (!authorizeTokenContent?.IsSuccess ?? true))
+        loading = true;
+        if (!await authenticationService.LoginAsync(loginInfo))
         {
             await jsRuntime.InvokeVoidAsync("Alert", "이메일 혹은 비밀번호가 일치하지 않습니다");
             loginInfo.Password = "";
+            loading = false;
             StateHasChanged();
             return;
         }
 
-        HttpResponseMessage claimsResponse = await httpClient.GetAsync("api/identity/getclaims");
-        Response<IEnumerable<ClaimDto>>? claimsContent = await claimsResponse.Content.ReadFromJsonAsync<Response<IEnumerable<ClaimDto>>>();
+        navigation.NavigateTo(ReturnUrl ?? "/");
+    }
 
-        if (claimsContent == null || !claimsResponse.IsSuccessStatusCode || (!claimsContent?.IsSuccess ?? true))
+    protected override async void OnInitialized()
+    {
+        AuthenticationState state = await AuthState;
+        if (state.User.Identity?.IsAuthenticated ?? false)
         {
-            await jsRuntime.InvokeVoidAsync("Alert", "로그인에 실패했습니다. 다시 시도해 주세요");
-            return;
+            navigation.NavigateTo(ReturnUrl ?? "/");
         }
-
-        await authenticationService.SetClaimsAsync(claimsContent!.Data);
-        navigationManager.NavigateTo(ReturnUrl ?? "/");
     }
 }

@@ -1,0 +1,15 @@
+﻿@page "/logout/{returnurl?}"
+
+@inject NavigationManager navigation
+@inject IAuthenticationService authenticationService
+
+@code {
+    [Parameter]
+    public string? ReturnUrl { get; set; }
+
+    protected override async void OnInitialized()
+    {
+        await authenticationService.LogoutAsync();
+        navigation.NavigateTo(ReturnUrl ?? "/");
+    }
+}

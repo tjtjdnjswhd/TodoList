@@ -1,26 +1,109 @@
-﻿using Microsoft.JSInterop;
+﻿using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.JSInterop;
 
+using System.Net.Http.Json;
 using System.Security.Claims;
 
 using TodoList.Client.Svcs.Interfaces;
 using TodoList.Shared.Data.Dtos;
+using TodoList.Shared.Models;
 
 namespace TodoList.Client.Svcs.Services
 {
-    public class AuthenticationService : IAuthenticationService
+    public sealed class AuthenticationService : IAuthenticationService
     {
         private readonly ILocalStorageService _localStorageService;
         private readonly IJSRuntime _jsRuntime;
+        private readonly IHttpClientFactory _httpClientFactory;
+        private readonly AuthenticationStateProvider _stateProvider;
 
-        public AuthenticationService(ILocalStorageService localStorageService, IJSRuntime jsRuntime)
+        public AuthenticationService(ILocalStorageService localStorageService, IJSRuntime jsRuntime, IHttpClientFactory httpClientFactory, AuthenticationStateProvider stateProvider)
         {
             _localStorageService = localStorageService;
             _jsRuntime = jsRuntime;
+            _httpClientFactory = httpClientFactory;
+            _stateProvider = stateProvider;
         }
 
-        public async Task<bool> IsClaimExpiredAsync()
+        public async Task<bool> LoginAsync(LoginInfo loginInfo)
         {
-            return (await _jsRuntime.InvokeAsync<string>("GetCookie", "expiration")) == null;
+            var httpClient = _httpClientFactory.CreateClient();
+            HttpResponseMessage responseMessage = await httpClient.PostAsJsonAsync("api/identity/login", loginInfo);
+            if (!responseMessage.IsSuccessStatusCode)
+            {
+                return false;
+            }
+
+            HttpResponseMessage claimsResponse = await httpClient.GetAsync("api/identity/getclaims");
+            claimsResponse.EnsureSuccessStatusCode();
+            Response<IEnumerable<ClaimDto>>? claimsContent = await claimsResponse.Content.ReadFromJsonAsync<Response<IEnumerable<ClaimDto>>>();
+
+            if (!claimsContent?.IsSuccess ?? true || claimsContent.Data == null)
+            {
+                await LogoutAsync();
+                return false;
+            }
+            else
+            {
+                await _localStorageService.SetAsync("claims", claimsContent!.Data);
+            }
+
+            await _stateProvider.GetAuthenticationStateAsync();
+
+            return true;
+        }
+
+        public async Task<bool> SignupAsync(SignupInfo signupInfo)
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            HttpResponseMessage responseMessage = await httpClient.PostAsJsonAsync("api/identity/signup", signupInfo);
+            if (!responseMessage.IsSuccessStatusCode)
+            {
+                return false;
+            }
+
+            Response<Guid>? response = await responseMessage.Content.ReadFromJsonAsync<Response<Guid>>();
+            return response?.IsSuccess ?? false;
+        }
+
+        public async Task LogoutAsync()
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            await httpClient.PostAsync("api/identity/expirerefreshtoken", null);
+            await _localStorageService.RemoveAsync("claims");
+            await _stateProvider.GetAuthenticationStateAsync();
+        }
+
+        public async Task RefreshAsync()
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            await httpClient.PostAsync("api/identity/refresh", null);
+        }
+
+        public async Task<bool> IsEmailExistAsync(string email)
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            Response<bool>? response = await httpClient.GetFromJsonAsync<Response<bool>>($"api/identity/isemailexist?email={email}");
+            return response?.Data ?? true;
+        }
+
+        public async Task<bool> IsNameExistAsync(string name)
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            Response<bool>? response = await httpClient.GetFromJsonAsync<Response<bool>>($"api/identity/isnameexist?name={name}");
+            return response?.Data ?? true;
+        }
+
+        public async Task<Guid?> GetUserIdOrNull()
+        {
+            IEnumerable<Claim>? claims = await GetClaimsOrNullAsync();
+            string? id = claims?.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+            if (Guid.TryParse(id, out Guid userId))
+            {
+                return userId;
+            }
+            return null;
         }
 
         public async Task<IEnumerable<Claim>?> GetClaimsOrNullAsync()
@@ -30,14 +113,19 @@ namespace TodoList.Client.Svcs.Services
             return claims;
         }
 
-        public async Task SetClaimsAsync(IEnumerable<ClaimDto> claimDtos)
+        public async Task<bool> IsClaimExpiredAsync()
         {
-            await _localStorageService.SetAsync("claims", claimDtos);
+            return (await _jsRuntime.InvokeAsync<string>("GetCookie", "accessTokenExpiration")) == null;
         }
 
-        public async Task RemoveClaimsAsync()
+        public async Task<bool> IsAccessTokenExpiredAsync()
         {
-            await _localStorageService.RemoveAsync("claims");
+            string? accessTokenExpiration = await _jsRuntime.InvokeAsync<string>("GetCookie", "accessTokenExpiration");
+            if (DateTimeOffset.TryParse(accessTokenExpiration, out DateTimeOffset expires))
+            {
+                return expires <= DateTimeOffset.Now;
+            }
+            return true;
         }
     }
 }

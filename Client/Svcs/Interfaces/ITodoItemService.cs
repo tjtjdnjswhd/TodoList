@@ -8,6 +8,6 @@ namespace TodoList.Client.Svcs.Interfaces
         public Task AddItemAsync(string name);
         public Task EditItemNameAsync(int itemId, string newName);
         public Task DeleteItemAsync(int itemId);
-        public Task ToggleIsComplete(int itemId);
+        public Task ToggleIsCompleteAsync(int itemId);
     }
 }

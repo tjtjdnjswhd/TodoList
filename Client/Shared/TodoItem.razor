@@ -1,0 +1,18 @@
+﻿@inject ITodoItemService todoItemService
+
+<div>
+    <h3>@item.Name</h3>
+    <input type="checkbox" name="@nameof(TodoItemDto.IsComplete)" @onchange="ToggleComplete" />
+    <h4>@item.CreatedAt</h4>
+</div>
+
+@code {
+    [Parameter]
+    public TodoItemDto item { get; set; }
+
+    private async void ToggleComplete()
+    {
+        await todoItemService.ToggleIsCompleteAsync(item.Id);
+        item.IsComplete = !item.IsComplete;
+    }
+}

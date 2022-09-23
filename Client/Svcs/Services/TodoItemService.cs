@@ -11,16 +11,19 @@ namespace TodoList.Client.Svcs.Services
     [Authorize]
     public class TodoItemService : ITodoItemService
     {
-        private readonly HttpClient _httpClient;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public TodoItemService(HttpClient httpClient)
+        public TodoItemService(IHttpClientFactory httpClientFactory)
         {
-            _httpClient = httpClient;
+            _httpClientFactory = httpClientFactory;
         }
 
         public async Task<IEnumerable<TodoItemDto>?> GetItemsByUserIdAsync(Guid userId)
         {
-            Response<IEnumerable<TodoItemDto>>? items = await _httpClient.GetFromJsonAsync<Response<IEnumerable<TodoItemDto>>>($"api/todoitem/get");
+            var httpClient = _httpClientFactory.CreateClient();
+            var response = await httpClient.GetAsync("api/todoitem/get");
+
+            Response<IEnumerable<TodoItemDto>>? items = await response.Content.ReadFromJsonAsync<Response<IEnumerable<TodoItemDto>>>();
             if (items == null || !items.IsSuccess)
             {
                 return null;
@@ -44,7 +47,7 @@ namespace TodoList.Client.Svcs.Services
             throw new NotImplementedException();
         }
 
-        public Task ToggleIsComplete(int itemId)
+        public Task ToggleIsCompleteAsync(int itemId)
         {
             throw new NotImplementedException();
         }

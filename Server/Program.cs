@@ -16,7 +16,6 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
-builder.Services.AddDistributedMemoryCache();
 
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ITodoItemService, TodoItemService>();
@@ -28,6 +27,13 @@ string connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddSqlServer<TodoListDbContext>(connectionString, option =>
 {
     option.MigrationsAssembly("TodoList.Migrations");
+});
+
+builder.Services.AddDistributedSqlServerCache(option =>
+{
+    option.ConnectionString = connectionString;
+    option.SchemaName = "dbo";
+    option.TableName = "RefreshTokenCache";
 });
 
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
@@ -67,7 +73,7 @@ builder.Services.AddAuthentication(option =>
         {
             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
             {
-                context.Response.Headers.Add("IS-TOKEN-EXPIRED", "true");
+                context.Response.Headers.Add("IS-ACCESS-TOKEN-EXPIRED", "true");
             }
             return Task.CompletedTask;
         },

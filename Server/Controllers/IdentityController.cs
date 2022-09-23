@@ -16,11 +16,13 @@ namespace TodoList.Server.Controllers
 {
     [Route("api/[controller]/[action]")]
     [ApiController]
-    public class IdentityController : ControllerBase
+    public sealed class IdentityController : ControllerBase
     {
         private static readonly int VERIFY_CODE_LENGTH = 16;
         private static readonly int REFRESH_TOKEN_EXPIRATION_DAYS = 30;
-        private static DateTimeOffset AccessTokenExpiration => DateTimeOffset.Now.AddMinutes(30);
+        private static readonly string ACCESS_TOKEN = "accessToken";
+        private static readonly string REFRESH_TOKEN = "refreshToken";
+        private static DateTimeOffset AccessTokenExpiration => DateTimeOffset.Now.AddSeconds(60);
 
         private readonly IUserService _userService;
         private readonly IJwtService _jwtService;
@@ -39,6 +41,26 @@ namespace TodoList.Server.Controllers
             _cache = cache;
             _mapper = mapper;
             _logger = logger;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> IsEmailExistAsync(string email)
+        {
+            return Ok(new Response<bool>()
+            {
+                Data = await _userService.IsEmailExistAsync(email),
+                IsSuccess = true
+            });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> IsNameExistAsync(string name)
+        {
+            return Ok(new Response<bool>()
+            {
+                Data = await _userService.IsNameExistAsync(name),
+                IsSuccess = true
+            });
         }
 
         [HttpPost]
@@ -102,7 +124,7 @@ namespace TodoList.Server.Controllers
                 });
             }
 
-            return BadRequest(new Response()
+            return NotFound(new Response()
             {
                 IsSuccess = false,
                 Message = errorMessage
@@ -169,7 +191,6 @@ namespace TodoList.Server.Controllers
         }
 
         [HttpPost]
-        [Authorize]
         public async Task<IActionResult> ExpireRefreshTokenAsync()
         {
             AuthorizeToken cookieToken = GetCookieToken();
@@ -178,6 +199,10 @@ namespace TodoList.Server.Controllers
             if (token == cookieToken.AccessToken)
             {
                 await _cache.RemoveAsync(cookieToken.RefreshToken);
+                Response.Cookies.Delete(ACCESS_TOKEN);
+                Response.Cookies.Delete(REFRESH_TOKEN);
+                Response.Cookies.Delete("accessTokenExpiration");
+
                 return Ok(new Response()
                 {
                     IsSuccess = true,
@@ -239,8 +264,8 @@ namespace TodoList.Server.Controllers
 
         private AuthorizeToken GetCookieToken()
         {
-            string accessToken = Request.Cookies["accessToken"] ?? string.Empty;
-            string refreshToken = Request.Cookies["refreshToken"] ?? string.Empty;
+            string accessToken = Request.Cookies[ACCESS_TOKEN] ?? string.Empty;
+            string refreshToken = Request.Cookies[REFRESH_TOKEN] ?? string.Empty;
             return new AuthorizeToken(accessToken, refreshToken);
         }
 
@@ -260,9 +285,9 @@ namespace TodoList.Server.Controllers
                 MaxAge = expirationDays
             };
 
-            Response.Cookies.Append("accessToken", token.AccessToken, cookieOptions);
-            Response.Cookies.Append("refreshToken", token.RefreshToken, cookieOptions);
-            Response.Cookies.Append("expiration", "a", new CookieOptions()
+            Response.Cookies.Append(ACCESS_TOKEN, token.AccessToken, cookieOptions);
+            Response.Cookies.Append(REFRESH_TOKEN, token.RefreshToken, cookieOptions);
+            Response.Cookies.Append("accessTokenExpiration", AccessTokenExpiration.ToString(), new CookieOptions()
             {
                 Secure = true,
                 MaxAge = expirationDays,
