@@ -5,10 +5,10 @@ namespace TodoList.Shared.Models
     public class Response
     {
         public bool IsSuccess { get; set; } = false;
-        public string Message { get; set; }
+        public EErrorCode ErrorCode { get; set; } = EErrorCode.Default;
     }
 
-    public class Response<T> : Response
+    public sealed class Response<T> : Response
     {
         public T Data { get; set; }
     }

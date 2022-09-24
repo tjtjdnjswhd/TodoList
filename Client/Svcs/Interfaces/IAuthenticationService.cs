@@ -9,7 +9,7 @@ namespace TodoList.Client.Svcs.Interfaces
         Task<bool> LoginAsync(LoginInfo loginInfo);
         Task<bool> SignupAsync(SignupInfo signupInfo);
         Task LogoutAsync();
-        Task RefreshAsync();
+        Task<HttpResponseMessage> RefreshAsync();
         Task<bool> IsEmailExistAsync(string email);
         Task<bool> IsNameExistAsync(string name);
         Task<Guid?> GetUserIdOrNull();

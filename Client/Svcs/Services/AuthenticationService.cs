@@ -75,10 +75,10 @@ namespace TodoList.Client.Svcs.Services
             await _stateProvider.GetAuthenticationStateAsync();
         }
 
-        public async Task RefreshAsync()
+        public async Task<HttpResponseMessage> RefreshAsync()
         {
             var httpClient = _httpClientFactory.CreateClient();
-            await httpClient.PostAsync("api/identity/refresh", null);
+            return await httpClient.PostAsync("api/identity/refresh", null);
         }
 
         public async Task<bool> IsEmailExistAsync(string email)

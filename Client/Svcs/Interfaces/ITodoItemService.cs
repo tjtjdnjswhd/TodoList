@@ -4,7 +4,10 @@ namespace TodoList.Client.Svcs.Interfaces
 {
     public interface ITodoItemService
     {
-        public Task<IEnumerable<TodoItemDto>?> GetItemsByUserIdAsync(Guid userId);
+        public List<TodoItemDto> Items { get; }
+        public event EventHandler? ItemChangedEvent;
+
+        public Task<List<TodoItemDto>?> InitItems();
         public Task AddItemAsync(string name);
         public Task EditItemNameAsync(int itemId, string newName);
         public Task DeleteItemAsync(int itemId);

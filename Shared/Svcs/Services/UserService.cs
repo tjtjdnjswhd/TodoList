@@ -15,9 +15,9 @@ namespace TodoList.Shared.Svcs.Services
 {
     public sealed class UserService : IUserService
     {
-        private TodoListDbContext _dbContext;
-        private PasswordHashSettings _hashSettings;
-        private ILogger<UserService> _logger;
+        private readonly TodoListDbContext _dbContext;
+        private readonly PasswordHashSettings _hashSettings;
+        private readonly ILogger<UserService> _logger;
 
         public UserService(TodoListDbContext dbContext, IOptions<PasswordHashSettings> passwordHashSettings, ILogger<UserService> logger)
         {

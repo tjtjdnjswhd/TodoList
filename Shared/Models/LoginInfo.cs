@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TodoList.Shared.Models
 {
-    public class LoginInfo
+    public sealed class LoginInfo
     {
         [Required(AllowEmptyStrings = false, ErrorMessage = "이메일을 입력해 주세요")]
         [EmailAddress(ErrorMessage = "잘못된 이메일 주소입니다")]

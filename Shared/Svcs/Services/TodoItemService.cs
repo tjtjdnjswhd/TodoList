@@ -9,8 +9,8 @@ namespace TodoList.Shared.Svcs.Services
 {
     public sealed class TodoItemService : ITodoItemService
     {
-        private TodoListDbContext _dbContext;
-        private ILogger<TodoItemService> _logger;
+        private readonly TodoListDbContext _dbContext;
+        private readonly ILogger<TodoItemService> _logger;
 
         public TodoItemService(TodoListDbContext dbContext, ILogger<TodoItemService> logger)
         {

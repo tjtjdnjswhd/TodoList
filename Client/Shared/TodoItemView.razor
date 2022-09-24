@@ -1,0 +1,16 @@
+﻿<div>
+    <p>
+        <span class="fs-3">@Item.Name</span>
+        <span class="fs-3">@Item.CreatedAt</span>
+        <input type="checkbox" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item.Id); Item.IsComplete ^= true; }" />
+        <button type="button" @onclick="async () => await TodoItemService.DeleteItemAsync(Item.Id)">delete</button>
+    </p>
+</div>
+
+@code {
+    [Parameter]
+    public TodoItemDto Item { get; set; }
+
+    [CascadingParameter]
+    public ITodoItemService TodoItemService { get; set; }
+}

@@ -2,7 +2,7 @@
 
 namespace TodoList.Shared.Settings
 {
-    public class PasswordHashSettings
+    public sealed class PasswordHashSettings
     {
         public string Pepper { get; set; }
         public int SaltLength { get; set; }

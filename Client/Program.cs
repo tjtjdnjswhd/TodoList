@@ -16,10 +16,6 @@ builder.Services.AddScoped<ILocalStorageService, LocalStorageService>();
 builder.Services.AddScoped<ITodoItemService, TodoItemService>();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddTransient<TokenHandler>();
-//builder.Services.AddScoped(sp => new HttpClient()
-//{
-//    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress),
-//});
 
 builder.Services.AddHttpClient(Options.DefaultName, conf =>
 {

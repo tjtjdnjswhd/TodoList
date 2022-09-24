@@ -1,39 +1,10 @@
 ﻿@page "/"
-
-@inject ITodoItemService todoItemService
-@inject IAuthenticationService authenticationService
 @attribute [Authorize]
 
 <PageTitle>Index</PageTitle>
 
-@if (Items != null)
-{
-    @foreach (var item in Items)
-    {
-        <TodoItem item="item" />
-    }
-}
+<TodoItemsView />
 
 @code {
-    private IEnumerable<TodoItemDto>? Items;
 
-    protected override void OnInitialized()
-    {
-        SetItem();
-        StateHasChanged();
-    }
-
-    private async void SetItem()
-    {
-        Guid? userId = await authenticationService.GetUserIdOrNull();
-
-        if (userId == null)
-        {
-            return;
-        }
-        else
-        {
-            Items = await todoItemService.GetItemsByUserIdAsync(userId.Value);
-        }
-    }
 }

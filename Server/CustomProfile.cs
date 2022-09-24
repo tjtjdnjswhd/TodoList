@@ -8,7 +8,7 @@ using TodoList.Shared.Models;
 
 namespace TodoList.Server
 {
-    public class CustomProfile : Profile
+    public sealed class CustomProfile : Profile
     {
         public CustomProfile()
         {

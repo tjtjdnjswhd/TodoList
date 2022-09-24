@@ -30,7 +30,6 @@
     </button>
 </EditForm>
 
-
 @code {
     [Parameter]
     public string? ReturnUrl { get; set; }
@@ -39,7 +38,6 @@
     protected Task<AuthenticationState> AuthState { get; set; }
 
     private LoginInfo loginInfo = new();
-
     private bool loading = false;
 
     private async void LoginCallback()
@@ -54,7 +52,7 @@
             return;
         }
 
-        navigation.NavigateTo(ReturnUrl ?? "/");
+        navigation.NavigateTo(ReturnUrl ?? "/", true);
     }
 
     protected override async void OnInitialized()

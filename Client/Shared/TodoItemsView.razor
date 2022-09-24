@@ -1,0 +1,30 @@
+﻿@implements IDisposable
+@inject ITodoItemService todoItemService
+
+<CascadingValue Value="todoItemService" IsFixed="true">
+    @foreach (var item in todoItemService.Items)
+    {
+        <div @key="item.Id">
+            <TodoItemView Item="item" />
+        </div>
+    }
+    <TodoItemWrite />
+</CascadingValue>
+
+@code {
+    protected override async void OnInitialized()
+    {
+        todoItemService.ItemChangedEvent += OnItemChange;
+        await todoItemService.InitItems();
+    }
+
+    private void OnItemChange(object? sender, EventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        todoItemService.ItemChangedEvent -= OnItemChange;
+    }
+}

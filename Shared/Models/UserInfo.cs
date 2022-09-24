@@ -2,7 +2,7 @@
 
 namespace TodoList.Shared.Models
 {
-    public class UserInfo
+    public sealed class UserInfo
     {
         public Guid Id { get; set; }
         public string Email { get; set; }
