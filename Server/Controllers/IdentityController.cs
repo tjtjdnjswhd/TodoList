@@ -244,7 +244,7 @@ namespace TodoList.Server.Controllers
             await _verifyCodeService.SetVerifyCodeAsync(email, code);
 
             string verifyUrl = Url.ActionLink("VerifyCode", "Identity")!;
-            string body =
+            string body = 
                 $@"<p>
                      <form action=""{verifyUrl}"" method=""post"">
                        <input type=""hidden"" value=""{email}"" name=""email""/>
@@ -272,14 +272,21 @@ namespace TodoList.Server.Controllers
             if (isVerified)
             {
                 await _userService.VerifyEmailAsync(email);
-                return Ok();
+                ContentResult contentResult = new()
+                {
+                    StatusCode = 200,
+                    Content = "<script>alert('인증 성공'); close();</script>"
+                };
+
+                return contentResult;
             }
             else
             {
-                return BadRequest(new Response()
+                return new ContentResult()
                 {
-                    ErrorCode = EErrorCode.EmailVerifyFail
-                });
+                    StatusCode = 404,
+                    Content = "<script>alert('인증 실패'); close();</script>"
+                };
             }
         }
 
