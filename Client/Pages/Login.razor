@@ -17,7 +17,7 @@
 
     <p>
         <label for="password">Password </label>
-        <InputText id="password" @bind-Value="loginInfo.Password" />
+        <InputText id="password" type="password" @bind-Value="loginInfo.Password" />
         <ValidationMessage For="() => loginInfo.Password" />
     </p>
 

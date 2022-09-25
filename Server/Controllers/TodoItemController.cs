@@ -39,48 +39,42 @@ namespace TodoList.Server.Controllers
 
         [HttpGet]
         [Authorize]
-        public IActionResult Get()
+        public async Task<IActionResult> GetAsync(int? itemId)
         {
             Guid id = GetUserId(User);
-
-            IEnumerable<TodoItem> items = _todoItemService.GetByUserId(id);
-
-            IEnumerable<TodoItemDto> itemDtos = _mapper.Map<IEnumerable<TodoItem>, IEnumerable<TodoItemDto>>(items);
-            Response<IEnumerable<TodoItemDto>> response = new()
+            if (itemId == null)
             {
-                Data = itemDtos,
-                IsSuccess = true
-            };
-
-            return Ok(response);
-        }
-
-        [HttpGet]
-        [Authorize]
-        public async Task<IActionResult> GetSingleAsync(int itemId)
-        {
-            Guid id = GetUserId(User);
-
-            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
-
-            if (item == null)
-            {
-                return NotFound(ITEM_NOT_FOUND_RESPONSE);
+                IEnumerable<TodoItem> items = _todoItemService.GetByUserId(id);
+                IEnumerable<TodoItemDto> itemDtos = _mapper.Map<IEnumerable<TodoItem>, IEnumerable<TodoItemDto>>(items);
+                Response<IEnumerable<TodoItemDto>> response = new()
+                {
+                    Data = itemDtos,
+                    IsSuccess = true
+                };
+                return Ok(response);
             }
-
-            if (item.UserId != id)
+            else
             {
-                return Forbid(JwtBearerDefaults.AuthenticationScheme);
+                TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId.Value);
+                if (item == null)
+                {
+                    return NotFound(ITEM_NOT_FOUND_RESPONSE);
+                }
+
+                if (item.UserId != id)
+                {
+                    return Forbid(JwtBearerDefaults.AuthenticationScheme);
+                }
+
+                TodoItemDto itemDto = _mapper.Map<TodoItem, TodoItemDto>(item);
+                Response<TodoItemDto> response = new()
+                {
+                    Data = itemDto,
+                    IsSuccess = true
+                };
+
+                return Ok(response);
             }
-
-            TodoItemDto itemDto = _mapper.Map<TodoItem, TodoItemDto>(item);
-            Response<TodoItemDto> response = new()
-            {
-                Data = itemDto,
-                IsSuccess = true
-            };
-
-            return Ok(response);
         }
 
         [HttpPost]
@@ -90,7 +84,7 @@ namespace TodoList.Server.Controllers
             Guid id = GetUserId(User);
 
             int itemId = _todoItemService.AddAsync(id, name).Result;
-            return CreatedAtAction("GetSingle", "TodoItem", routeValues: new { itemId }, value: null);
+            return CreatedAtAction("Get", "TodoItem", routeValues: new { itemId }, value: null);
         }
 
         [HttpPatch]

@@ -12,15 +12,13 @@ namespace TodoList.Client
         private readonly Uri _refreshUri;
         private readonly IJSRuntime _jsRuntime;
         private readonly NavigationManager _navigationManager;
-        private readonly ILocalStorageService _localStorageService;
 
-        public TokenHandler(IAuthenticationService authenticationService, IWebAssemblyHostEnvironment hostEnvironment, IJSRuntime jsRuntime, NavigationManager navigationManager, ILocalStorageService localStorageService)
+        public TokenHandler(IAuthenticationService authenticationService, IWebAssemblyHostEnvironment hostEnvironment, IJSRuntime jsRuntime, NavigationManager navigationManager)
         {
             _authenticationService = authenticationService;
             _refreshUri = new($"{hostEnvironment.BaseAddress}api/identity/refresh");
             _jsRuntime = jsRuntime;
             _navigationManager = navigationManager;
-            _localStorageService = localStorageService;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -37,9 +35,9 @@ namespace TodoList.Client
                     && h.Value.Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase))))
                 {
                     await _jsRuntime.InvokeVoidAsync("Alert", "토큰이 만료되 재 로그인 후 이용해 주시기 바랍니다");
-                    await _localStorageService.RemoveAsync("claims");
+                    await _authenticationService.LogoutAsync();
 
-                    _navigationManager.NavigateTo("/", true);
+                    _navigationManager.NavigateTo("/login", true);
                 }
 
                 response = await base.SendAsync(request, cancellationToken);

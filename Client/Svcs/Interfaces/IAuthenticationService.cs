@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-
-using TodoList.Shared.Models;
+﻿using TodoList.Shared.Models;
 
 namespace TodoList.Client.Svcs.Interfaces
 {
@@ -12,9 +10,5 @@ namespace TodoList.Client.Svcs.Interfaces
         Task<HttpResponseMessage> RefreshAsync();
         Task<bool> IsEmailExistAsync(string email);
         Task<bool> IsNameExistAsync(string name);
-        Task<Guid?> GetUserIdOrNull();
-        Task<IEnumerable<Claim>?> GetClaimsOrNullAsync();
-        Task<bool> IsClaimExpiredAsync();
-        Task<bool> IsAccessTokenExpiredAsync();
     }
 }

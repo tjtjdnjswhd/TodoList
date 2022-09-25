@@ -8,8 +8,8 @@
 
     <p>
         <label for="email">Email </label>
-        <InputText id="email" @bind-Value="signupInfo.Email" @onchange="@(() => isEmailChecked = false)" />
-        <button type="button" disabled="@(isEmailChecking || isEmailChecked)" @onclick="@CheckEmail">
+        <InputText id="email" @bind-Value="signupInfo.Email" @oninput="() => isEmailChecked = false" />
+        <button type="button" disabled="@(isEmailChecking || isEmailChecked)" @onclick="CheckEmail">
             @if (isEmailChecking)
             {
                 <span class="spinner-border spinner-border-sm"></span>
@@ -25,8 +25,8 @@
 
     <p>
         <label for="name">Name </label>
-        <InputText id="name" @bind-Value="signupInfo.Name" @onchange="@(() => isNameChecked = false)" />
-        <button type="button" disabled="@(isNameChecking || isNameChecked)" @onclick="@CheckName">
+        <InputText id="name" @bind-Value="signupInfo.Name" @oninput="() => isNameChecked = false" />
+        <button type="button" disabled="@(isNameChecking || isNameChecked)" @onclick="CheckName">
             @if (isNameChecking)
             {
                 <span class="spinner-border spinner-border-sm"></span>
@@ -42,13 +42,13 @@
 
     <p>
         <label for="password">Password </label>
-        <InputText id="password" @bind-Value="signupInfo.Password" />
+        <InputText id="password" type="password" @bind-Value="signupInfo.Password" />
         <ValidationMessage For="() => signupInfo.Password" />
     </p>
 
     <p>
         <label for="passwordCheck">Password check </label>
-        <InputText id="passwordCheck" @bind-Value="signupInfo.PasswordCheck" />
+        <InputText id="passwordCheck" type="password" @bind-Value="signupInfo.PasswordCheck" />
         <ValidationMessage For="() => signupInfo.PasswordCheck" />
     </p>
 
