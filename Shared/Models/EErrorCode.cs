@@ -12,6 +12,7 @@
         EmailDuplicate = 32,
         NameDuplicate = 64,
         EmailVerifyFail = 128,
-        TodoItemNotFound = 256
+        TodoItemNotFound = 256,
+        EmailNotVerified = 512
     }
 }

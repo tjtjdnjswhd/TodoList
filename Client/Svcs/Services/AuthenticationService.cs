@@ -25,6 +25,7 @@ namespace TodoList.Client.Svcs.Services
         {
             var httpClient = _httpClientFactory.CreateClient();
             HttpResponseMessage responseMessage = await httpClient.PostAsJsonAsync("api/identity/login", loginInfo);
+
             if (!responseMessage.IsSuccessStatusCode)
             {
                 return false;

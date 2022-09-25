@@ -134,6 +134,16 @@ namespace TodoList.Server.Controllers
             }
 
             User? user = await _userService.GetUserByEmailOrNullAsync(loginInfo.Email);
+
+            if (!user!.IsEmailVerified)
+            {
+                return BadRequest(new Response()
+                {
+                    ErrorCode = EErrorCode.EmailNotVerified,
+                    IsSuccess = false
+                });
+            }
+
             AuthorizeToken token = _jwtService.GenerateToken(user!, AccessTokenExpiration);
             await SetCookieTokenAsync(token);
 

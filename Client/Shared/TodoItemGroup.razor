@@ -1,0 +1,42 @@
+﻿@*@implements IDisposable*@
+
+<div class="accordion-header">
+    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-panel-@Date.ToString("yyMMdd")">
+        @Date.ToString("yy.MM.dd")
+    </button>
+</div>
+
+<div id="accordion-panel-@Date.ToString("yyMMdd")" class="accordion-collapse collapse show">
+    <div class="accordion-body">
+        @foreach (var item in Items)
+        {
+            <TodoItemView @key="item.Id" Item="item" />
+        }
+    </div>
+</div>
+
+
+@code {
+    [Parameter]
+    public List<TodoItemDto> Items { get; set; }
+    [Parameter]
+    public DateTime Date { get; set; }
+
+    [CascadingParameter]
+    public ITodoItemService TodoItemService { get; set; }
+
+    //protected override void OnInitialized()
+    //{
+    //    TodoItemService.ItemChangedEvent += OnItemChange;
+    //}
+
+    //private void OnItemChange(object? sender, EventArgs e)
+    //{
+    //    StateHasChanged();
+    //}
+
+    //public void Dispose()
+    //{
+    //    TodoItemService.ItemChangedEvent -= OnItemChange;
+    //}
+}

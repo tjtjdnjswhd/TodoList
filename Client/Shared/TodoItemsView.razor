@@ -2,12 +2,15 @@
 @inject ITodoItemService todoItemService
 
 <CascadingValue Value="todoItemService" IsFixed="true">
-    @foreach (var item in todoItemService.Items)
-    {
-        <div @key="item.Id">
-            <TodoItemView Item="item" />
-        </div>
-    }
+    <div class="accordion">
+        @foreach (var itemGroup in todoItemService.ItemsDict.OrderBy(t => t.Key))
+        {
+            <div class="accordion-item" @key="itemGroup.Key">
+                <TodoItemGroup Items="itemGroup.Value" Date="itemGroup.Key"/>
+            </div>
+        }
+    </div>
+
     <TodoItemWrite />
 </CascadingValue>
 

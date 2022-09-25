@@ -18,8 +18,10 @@ window.Alert = function (message) {
   alert(message);
 }
 
+window.Confirm = function (message) {
+  return confirm(message);
+}
+
 window.Blur = function (element) {
   element.blur();
 }
-
-window.close();

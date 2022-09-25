@@ -11,7 +11,7 @@ namespace TodoList.Client.Svcs.Services
     [Authorize]
     public sealed class TodoItemService : ITodoItemService
     {
-        public List<TodoItemDto> Items { get; } = new();
+        public Dictionary<DateTime, List<TodoItemDto>> ItemsDict { get; set; } = new();
 
         private readonly IHttpClientFactory _httpClientFactory;
         public event EventHandler? ItemChangedEvent;
@@ -21,7 +21,7 @@ namespace TodoList.Client.Svcs.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<List<TodoItemDto>?> InitItems()
+        public async Task<Dictionary<DateTime, List<TodoItemDto>>?> InitItems()
         {
             var httpClient = _httpClientFactory.CreateClient();
             var response = await httpClient.GetAsync("api/todoitem/get");
@@ -33,9 +33,16 @@ namespace TodoList.Client.Svcs.Services
                 return null;
             }
 
-            Items.AddRange(items.Data);
+            var groupByDate = items.Data.GroupBy(t => t.CreatedAt.Date);
+
+            foreach (var group in groupByDate)
+            {
+                ItemsDict.Add(group.Key, group.ToList());
+            }
+
             OnItemChanged(EventArgs.Empty);
-            return Items;
+
+            return ItemsDict;
         }
 
         public async Task AddItemAsync(string name)
@@ -52,58 +59,77 @@ namespace TodoList.Client.Svcs.Services
 
             Uri location = message.Headers.Location!;
             var newItemResponse = await httpClient.GetFromJsonAsync<Response<TodoItemDto>>(location.PathAndQuery);
+
             if (newItemResponse?.IsSuccess ?? false)
             {
-                Items.Add(newItemResponse.Data);
+                var item = newItemResponse.Data;
+                if (ItemsDict.TryGetValue(item.CreatedAt.Date, out var list))
+                {
+                    list.Add(item);
+                }
+                else
+                {
+                    ItemsDict.Add(item.CreatedAt.Date, new List<TodoItemDto>() { item });
+                }
             }
 
             OnItemChanged(EventArgs.Empty);
         }
 
-        public async Task DeleteItemAsync(int itemId)
+        public async Task DeleteItemAsync(TodoItemDto item)
         {
             var httpClient = _httpClientFactory.CreateClient();
-            var response = await httpClient.DeleteAsync($"api/todoitem/delete?itemId={itemId}");
+            var response = await httpClient.DeleteAsync($"api/todoitem/delete?itemId={item.Id}");
             response.EnsureSuccessStatusCode();
 
-            Items.Remove(Items.First(t => t.Id == itemId));
+            var list = ItemsDict.GetValueOrDefault(item.CreatedAt.Date);
+            list?.Remove(item);
+            if (list?.Count == 0)
+            {
+                ItemsDict.Remove(item.CreatedAt.Date);
+            }
+
             OnItemChanged(EventArgs.Empty);
         }
 
-        public async Task EditItemNameAsync(int itemId, string newName)
+        public async Task EditItemNameAsync(TodoItemDto item, string newName)
         {
             var httpClient = _httpClientFactory.CreateClient();
             Dictionary<string, string> values = new()
             {
-                { nameof(itemId), itemId.ToString() },
+                { "itemId", item.Id.ToString() },
                 { nameof(newName), newName }
             };
 
             FormUrlEncodedContent content = new(values);
-            var response = await httpClient.PatchAsync($"api/todoitem/patch", content);
+            var response = await httpClient.PatchAsync("api/todoitem/patch", content);
             response.EnsureSuccessStatusCode();
 
-            foreach (var item in Items.Where(t => t.Id == itemId))
+            var list = ItemsDict.GetValueOrDefault(item.CreatedAt.Date)!;
+            foreach (var a in list.Where(t => t.Id == item.Id))
             {
-                item.Name = newName;
+                a.Name = newName;
             }
 
             OnItemChanged(EventArgs.Empty);
         }
 
-        public async Task ToggleIsCompleteAsync(int itemId)
+        public async Task ToggleIsCompleteAsync(TodoItemDto item)
         {
             var httpClient = _httpClientFactory.CreateClient();
             Dictionary<string, string> values = new()
             {
-                { nameof(itemId), itemId.ToString() },
+                { "itemId", item.Id.ToString() },
             };
+
             FormUrlEncodedContent content = new(values);
             var response = await httpClient.PostAsync("api/todoitem/togglecomplete", content);
             response.EnsureSuccessStatusCode();
-            foreach (var item in Items.Where(t => t.Id == itemId))
+
+            var list = ItemsDict.GetValueOrDefault(item.CreatedAt.Date)!;
+            foreach (var a in list.Where(t => t.Id == item.Id))
             {
-                item.IsComplete ^= true;
+                a.IsComplete ^= true;
             }
 
             OnItemChanged(EventArgs.Empty);

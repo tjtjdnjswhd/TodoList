@@ -4,13 +4,13 @@ namespace TodoList.Client.Svcs.Interfaces
 {
     public interface ITodoItemService
     {
-        public List<TodoItemDto> Items { get; }
+        public Dictionary<DateTime, List<TodoItemDto>> ItemsDict { get; protected set; }
         public event EventHandler? ItemChangedEvent;
 
-        public Task<List<TodoItemDto>?> InitItems();
+        public Task<Dictionary<DateTime, List<TodoItemDto>>?> InitItems();
         public Task AddItemAsync(string name);
-        public Task EditItemNameAsync(int itemId, string newName);
-        public Task DeleteItemAsync(int itemId);
-        public Task ToggleIsCompleteAsync(int itemId);
+        public Task EditItemNameAsync(TodoItemDto item, string newName);
+        public Task DeleteItemAsync(TodoItemDto item);
+        public Task ToggleIsCompleteAsync(TodoItemDto item);
     }
 }

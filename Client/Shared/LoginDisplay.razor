@@ -1,6 +1,7 @@
-﻿<AuthorizeView>
+﻿@using Microsoft.IdentityModel.JsonWebTokens
+<AuthorizeView>
     <Authorized>
-        <a href="/profile">Hello, @context.User.Identity!.Name</a>
+        <a href="#">@context.User.FindFirst(c => c.Type == JwtRegisteredClaimNames.Email)!.Value</a>
         <a href="/logout">Log out</a>
     </Authorized>
     <NotAuthorized>

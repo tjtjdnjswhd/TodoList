@@ -1,12 +1,12 @@
 ﻿@inject IJSRuntime jsRuntime
 
 <div>
-    <p>
-        <input class="fs-3" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onfocusout="ChangeName" @onkeydown="NameKeydown" />
-        <span class="fs-3">@Item.CreatedAt.ToShortTimeString()</span>
-        <input type="checkbox" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item.Id); Item.IsComplete ^= true; }" />
-        <button type="button" @onclick="async () => await TodoItemService.DeleteItemAsync(Item.Id)">delete</button>
-    </p>
+    <input class="fs-5 form-text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
+    <span class="fs-5">@Item.CreatedAt.ToString("HH:mm")</span>
+    <input type="checkbox" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; }" />
+    <button type="button" @onclick="Delete">
+        <span class="oi oi-trash"></span>
+    </button>
 </div>
 
 @code {
@@ -23,9 +23,8 @@
 
     private async void NameKeydown(KeyboardEventArgs keyboardEventArgs)
     {
-        if (keyboardEventArgs.Code.Equals("Enter", StringComparison.OrdinalIgnoreCase))
+        if (keyboardEventArgs.Key.Equals("Enter", StringComparison.OrdinalIgnoreCase))
         {
-            ChangeName();
             await jsRuntime.InvokeVoidAsync("Blur", name);
         }
     }
@@ -34,16 +33,21 @@
     {
         if (nameChanged)
         {
-            await TodoItemService.EditItemNameAsync(Item.Id, newName);
+            await TodoItemService.EditItemNameAsync(Item, newName);
             nameChanged = false;
         }
     }
 
-    protected override void OnInitialized()
+    private async void Delete()
     {
-        if (TodoItemService == null || Item == null)
+        if (await jsRuntime.InvokeAsync<bool>("Confirm", "삭제 하시겠습니까?"))
         {
+            await TodoItemService.DeleteItemAsync(Item);
         }
+    }
+
+    protected override void OnParametersSet()
+    {
         newName = Item.Name;
     }
 }
