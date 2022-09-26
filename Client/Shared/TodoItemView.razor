@@ -1,11 +1,11 @@
 ﻿@inject IJSRuntime jsRuntime
 
-<div>
-    <input class="fs-5 form-text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
-    <span class="fs-5">@Item.CreatedAt.ToString("HH:mm")</span>
+<div class="d-flex">
     <input type="checkbox" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; }" />
-    <button type="button" @onclick="Delete">
-        <span class="oi oi-trash"></span>
+    <input class="fs-5 w-100" type="text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
+    <span class="fs-5">@Item.CreatedAt.ToString("HH:mm")</span>
+    <button type="button" class="btn" @onclick="Delete">
+        <span class="oi oi-x"></span>
     </button>
 </div>
 

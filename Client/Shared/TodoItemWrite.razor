@@ -1,11 +1,14 @@
-﻿<EditForm Model="Model" OnValidSubmit="AddItem">
-    <InputText @bind-Value="Model.NewItemName" />
-    <button type="submit">작성</button>
+﻿<EditForm Model="Model" OnValidSubmit="AddItem" @attributes="FormAttribute">
+    <InputText @bind-Value="Model.NewItemName" class="form-control"/>
+    <button type="submit" class="btn btn-outline-primary">추가</button>
 </EditForm>
 
 @code {
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
+
+    [Parameter(CaptureUnmatchedValues = true)]
+    public Dictionary<string, object> FormAttribute { get; set; }
 
     private FormModel Model = new();
 

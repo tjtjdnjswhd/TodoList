@@ -1,6 +1,4 @@
-﻿@*@implements IDisposable*@
-
-<div class="accordion-header">
+﻿<div class="accordion-header">
     <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-panel-@Date.ToString("yyMMdd")">
         @Date.ToString("yy.MM.dd")
     </button>
@@ -24,19 +22,4 @@
 
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
-
-    //protected override void OnInitialized()
-    //{
-    //    TodoItemService.ItemChangedEvent += OnItemChange;
-    //}
-
-    //private void OnItemChange(object? sender, EventArgs e)
-    //{
-    //    StateHasChanged();
-    //}
-
-    //public void Dispose()
-    //{
-    //    TodoItemService.ItemChangedEvent -= OnItemChange;
-    //}
 }

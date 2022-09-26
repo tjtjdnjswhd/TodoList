@@ -1,0 +1,14 @@
+﻿input[type=text] {
+    border-top-style: hidden;
+    border-right-style: hidden;
+    border-left-style: hidden;
+}
+
+    input[type=text]:focus {
+        outline: none;
+        background-color:rgb(128, 128, 128, 0.1)
+    }
+
+    input[type=text]:not(:focus) {
+        border-bottom-style: groove;
+    }

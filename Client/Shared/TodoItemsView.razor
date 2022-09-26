@@ -6,12 +6,14 @@
         @foreach (var itemGroup in todoItemService.ItemsDict.OrderBy(t => t.Key))
         {
             <div class="accordion-item" @key="itemGroup.Key">
-                <TodoItemGroup Items="itemGroup.Value" Date="itemGroup.Key"/>
+                <TodoItemGroup Items="itemGroup.Value" Date="itemGroup.Key" />
             </div>
         }
     </div>
 
-    <TodoItemWrite />
+    <div class="position-fixed w-100 px-4 pb-3 bottom-0 start-0">
+        <TodoItemWrite class="input-group" />
+    </div>
 </CascadingValue>
 
 @code {
