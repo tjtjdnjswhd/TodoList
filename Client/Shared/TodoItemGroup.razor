@@ -1,25 +1,60 @@
-﻿<div class="accordion-header">
-    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-panel-@Date.ToString("yyMMdd")">
-        @Date.ToString("yy.MM.dd")
-    </button>
-</div>
+﻿<div class="accordion-item">
+    <div class="accordion-header">
+        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-panel-@Date.ToString("yyMMdd")">
+            @Date.ToString("yy.MM.dd")
+        </button>
+    </div>
 
-<div id="accordion-panel-@Date.ToString("yyMMdd")" class="accordion-collapse collapse show">
-    <div class="accordion-body">
-        @foreach (var item in Items)
-        {
-            <TodoItemView @key="item.Id" Item="item" />
-        }
+    <div id="accordion-panel-@Date.ToString("yyMMdd")" class="accordion-collapse collapse show">
+        <button @onclick="SortItemByCreatedAt">
+            날짜
+        </button>
+        <button @onclick="SortItemByName">이름</button>
+
+        <div class="accordion-body">
+            @if (IsOrderChanged || IsInit)
+            {
+                for (int i = 0; i < items.Count; ++i)
+                {
+                    <TodoItemView @key="items[i].Id" Item="items[i]" />
+                }
+                IsOrderChanged = false;
+                IsInit = false;
+            }
+        </div>
     </div>
 </div>
 
-
 @code {
-    [Parameter]
-    public List<TodoItemDto> Items { get; set; }
     [Parameter]
     public DateTime Date { get; set; }
 
+    private List<TodoItemDto> items;
+    private bool IsAscending = true;
+    private bool IsOrderChanged = false;
+    private bool IsInit = true;
+
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        items = TodoItemService.GetItemsOrNull(Date) ?? throw new ArgumentNullException();
+    }
+
+    public void SortItemByName()
+    {
+        TodoItemService.SortItems(Date, (t1, t2) => t1.Name.CompareTo(t2.Name) * (IsAscending ? 1 : -1));
+        IsOrderChanged = true;
+        IsAscending ^= true;
+        StateHasChanged();
+    }
+
+    public void SortItemByCreatedAt()
+    {
+        TodoItemService.SortItems(Date, (t1, t2) => t1.CreatedAt.CompareTo(t2.CreatedAt) * (IsAscending ? 1 : -1));
+        IsOrderChanged = true;
+        IsAscending ^= true;
+        StateHasChanged();
+    }
 }

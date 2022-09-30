@@ -1,8 +1,8 @@
 ﻿@inject IJSRuntime jsRuntime
 
-<div class="d-flex">
-    <input type="checkbox" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; }" />
-    <input class="fs-5 w-100" type="text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
+<div class="d-flex align-items-center">
+    <input type="checkbox" class="form-check" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; }" />
+    <input class="fs-5 w-100 mx-3 py-0" type="text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
     <span class="fs-5">@Item.CreatedAt.ToString("HH:mm")</span>
     <button type="button" class="btn" @onclick="Delete">
         <span class="oi oi-x"></span>
@@ -31,6 +31,14 @@
 
     private async void ChangeName()
     {
+        if (string.IsNullOrEmpty(newName))
+        {
+            await jsRuntime.InvokeVoidAsync("Alert", "내용을 작성해 주세요");
+            newName = Item.Name;
+            StateHasChanged();
+            return;
+        }
+
         if (nameChanged)
         {
             await TodoItemService.EditItemNameAsync(Item, newName);

@@ -11,8 +11,7 @@ namespace TodoList.Client.Svcs.Services
     [Authorize]
     public sealed class TodoItemService : ITodoItemService
     {
-        public Dictionary<DateTime, List<TodoItemDto>> ItemsDict { get; set; } = new();
-
+        private Dictionary<DateTime, List<TodoItemDto>> _itemsDict = new();
         private readonly IHttpClientFactory _httpClientFactory;
         public event EventHandler? ItemChangedEvent;
 
@@ -21,28 +20,44 @@ namespace TodoList.Client.Svcs.Services
             _httpClientFactory = httpClientFactory;
         }
 
-        public async Task<Dictionary<DateTime, List<TodoItemDto>>?> InitItems()
+        public async Task<Dictionary<DateTime, List<TodoItemDto>>?> InitItemsAsync()
         {
             var httpClient = _httpClientFactory.CreateClient();
             var response = await httpClient.GetAsync("api/todoitem/get");
             response.EnsureSuccessStatusCode();
 
             Response<IEnumerable<TodoItemDto>>? items = await response.Content.ReadFromJsonAsync<Response<IEnumerable<TodoItemDto>>>();
+
             if (items == null || !items.IsSuccess)
             {
                 return null;
             }
-
+            
             var groupByDate = items.Data.GroupBy(t => t.CreatedAt.Date);
 
             foreach (var group in groupByDate)
             {
-                ItemsDict.Add(group.Key, group.ToList());
+                _itemsDict.Add(group.Key, group.ToList());
             }
 
             OnItemChanged(EventArgs.Empty);
+            return _itemsDict;
+        }
 
-            return ItemsDict;
+        public List<TodoItemDto>? GetItemsOrNull(DateTime date)
+        {
+            return _itemsDict.GetValueOrDefault(date);
+        }
+
+        public void SortItems(DateTime date, Comparison<TodoItemDto> comparison)
+        {
+            List<TodoItemDto>? items = GetItemsOrNull(date);
+            if (items == null)
+            {
+                return;
+            }
+
+            items.Sort(comparison);
         }
 
         public async Task AddItemAsync(string name)
@@ -63,13 +78,13 @@ namespace TodoList.Client.Svcs.Services
             if (newItemResponse?.IsSuccess ?? false)
             {
                 var item = newItemResponse.Data;
-                if (ItemsDict.TryGetValue(item.CreatedAt.Date, out var list))
+                if (_itemsDict.TryGetValue(item.CreatedAt.Date, out var list))
                 {
                     list.Add(item);
                 }
                 else
                 {
-                    ItemsDict.Add(item.CreatedAt.Date, new List<TodoItemDto>() { item });
+                    _itemsDict.Add(item.CreatedAt.Date, new List<TodoItemDto>() { item });
                 }
             }
 
@@ -82,11 +97,11 @@ namespace TodoList.Client.Svcs.Services
             var response = await httpClient.DeleteAsync($"api/todoitem/delete?itemId={item.Id}");
             response.EnsureSuccessStatusCode();
 
-            var list = ItemsDict.GetValueOrDefault(item.CreatedAt.Date);
+            var list = _itemsDict.GetValueOrDefault(item.CreatedAt.Date);
             list?.Remove(item);
             if (list?.Count == 0)
             {
-                ItemsDict.Remove(item.CreatedAt.Date);
+                _itemsDict.Remove(item.CreatedAt.Date);
             }
 
             OnItemChanged(EventArgs.Empty);
@@ -105,7 +120,7 @@ namespace TodoList.Client.Svcs.Services
             var response = await httpClient.PatchAsync("api/todoitem/patch", content);
             response.EnsureSuccessStatusCode();
 
-            var list = ItemsDict.GetValueOrDefault(item.CreatedAt.Date)!;
+            var list = _itemsDict.GetValueOrDefault(item.CreatedAt.Date)!;
             foreach (var a in list.Where(t => t.Id == item.Id))
             {
                 a.Name = newName;
@@ -126,7 +141,7 @@ namespace TodoList.Client.Svcs.Services
             var response = await httpClient.PostAsync("api/todoitem/togglecomplete", content);
             response.EnsureSuccessStatusCode();
 
-            var list = ItemsDict.GetValueOrDefault(item.CreatedAt.Date)!;
+            var list = _itemsDict.GetValueOrDefault(item.CreatedAt.Date)!;
             foreach (var a in list.Where(t => t.Id == item.Id))
             {
                 a.IsComplete ^= true;

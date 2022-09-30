@@ -1,6 +1,15 @@
-﻿<EditForm Model="Model" OnValidSubmit="AddItem" @attributes="FormAttribute">
-    <InputText @bind-Value="Model.NewItemName" class="form-control"/>
-    <button type="submit" class="btn btn-outline-primary">추가</button>
+﻿@inject IJSRuntime jsRuntime
+
+@if (creating)
+{
+    <div class="w-100 bg-success text-white">
+        저장 중...
+    </div>
+}
+
+<EditForm Model="Model" OnValidSubmit="AddItem" @attributes="FormAttribute">
+    <InputText @bind-Value="Model.NewItemName" class="form-control" style="background-color: azure;" />
+    <button type="submit" class="btn btn-outline-primary" disabled="@creating">추가</button>
 </EditForm>
 
 @code {
@@ -11,16 +20,20 @@
     public Dictionary<string, object> FormAttribute { get; set; }
 
     private FormModel Model = new();
+    private bool creating = false;
 
     public async void AddItem()
     {
         if (string.IsNullOrEmpty(Model.NewItemName))
         {
+            await jsRuntime.InvokeVoidAsync("Alert", "내용을 작성해 주세요");
             return;
         }
 
+        creating = true;
         await TodoItemService.AddItemAsync(Model.NewItemName);
         Model.NewItemName = "";
+        creating = false;
         StateHasChanged();
     }
 

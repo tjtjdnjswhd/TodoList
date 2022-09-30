@@ -6,9 +6,19 @@
 
     input[type=text]:focus {
         outline: none;
-        background-color:rgb(128, 128, 128, 0.1)
+        background-color: rgb(128, 128, 128, 0.1)
     }
 
     input[type=text]:not(:focus) {
         border-bottom-style: groove;
     }
+
+input.form-check {
+    height: 1.5rem;
+    width: 1.5rem;
+}
+
+.btn:focus {
+    outline: none;
+    box-shadow: none !important;
+}

@@ -1,26 +1,58 @@
 ﻿@implements IDisposable
 @inject ITodoItemService todoItemService
 
-<CascadingValue Value="todoItemService" IsFixed="true">
-    <div class="accordion">
-        @foreach (var itemGroup in todoItemService.ItemsDict.OrderBy(t => t.Key))
-        {
-            <div class="accordion-item" @key="itemGroup.Key">
-                <TodoItemGroup Items="itemGroup.Value" Date="itemGroup.Key" />
-            </div>
-        }
+@if (isLoading)
+{
+    <div>
+        loading...
     </div>
+}
+else
+{
+    <button @onclick="ChangeOrder">정렬</button>
+    <CascadingValue Value="todoItemService" IsFixed="true">
+        <div class="accordion">
+            @{
+                if (IsOrderChanged || IsInit)
+                {
+                    var orderedItems = IsAscending ? itemsDict.OrderBy(t => t.Key) : itemsDict.OrderByDescending(t => t.Key);
+                    foreach (var itemGroup in orderedItems)
+                    {
+                        <TodoItemGroup @key="itemGroup.Key" Date="itemGroup.Key" />
+                    }
+                    IsOrderChanged = false;
+                    IsInit = false;
+                }
+            }
+        </div>
 
-    <div class="position-fixed w-100 px-4 pb-3 bottom-0 start-0">
-        <TodoItemWrite class="input-group" />
-    </div>
-</CascadingValue>
+        <div class="position-fixed w-100 px-4 pb-3 bottom-0 start-0">
+            <TodoItemWrite class="input-group" />
+        </div>
+    </CascadingValue>
+}
 
 @code {
+    private bool isLoading = true;
+    private Dictionary<DateTime, List<TodoItemDto>> itemsDict;
+
+    private bool IsAscending = true;
+    private bool IsOrderChanged = false;
+    private bool IsInit = true;
+
     protected override async void OnInitialized()
     {
         todoItemService.ItemChangedEvent += OnItemChange;
-        await todoItemService.InitItems();
+        itemsDict = (await todoItemService.InitItemsAsync()) ?? throw new ArgumentNullException(nameof(itemsDict));
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private void ChangeOrder()
+    {
+        IsAscending ^= true;
+        IsOrderChanged = true;
+        StateHasChanged();
     }
 
     private void OnItemChange(object? sender, EventArgs e)
