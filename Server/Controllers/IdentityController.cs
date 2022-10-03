@@ -78,7 +78,7 @@ namespace TodoList.Server.Controllers
             }
 
             string? expiredAccessToken = await _cache.GetStringAsync(cookieToken.RefreshToken);
-            EErrorCode errorCode = EErrorCode.Default;
+            EErrorCode errorCode = EErrorCode.NoError;
 
             if (expiredAccessToken != cookieToken.AccessToken)
             {
@@ -113,7 +113,7 @@ namespace TodoList.Server.Controllers
         [HttpPost]
         public async Task<IActionResult> LoginAsync([FromBody] LoginInfo loginInfo)
         {
-            EErrorCode errorCode = EErrorCode.Default;
+            EErrorCode errorCode = EErrorCode.NoError;
             if (!await _userService.IsEmailExistAsync(loginInfo.Email))
             {
                 errorCode |= EErrorCode.EmailNotExist;
@@ -121,10 +121,10 @@ namespace TodoList.Server.Controllers
 
             if (!await _userService.MatchPassword(loginInfo))
             {
-                errorCode |= EErrorCode.EmailNotExist;
+                errorCode |= EErrorCode.WrongPassword;
             }
 
-            if (errorCode != EErrorCode.Default)
+            if (errorCode != EErrorCode.NoError)
             {
                 return NotFound(new Response()
                 {
@@ -180,7 +180,7 @@ namespace TodoList.Server.Controllers
         [HttpPost]
         public async Task<IActionResult> SignupAsync([FromBody] SignupInfo signupInfo)
         {
-            EErrorCode errorCode = EErrorCode.Default;
+            EErrorCode errorCode = EErrorCode.NoError;
             if (await _userService.IsEmailExistAsync(signupInfo.Email))
             {
                 errorCode |= EErrorCode.EmailDuplicate;
@@ -191,10 +191,11 @@ namespace TodoList.Server.Controllers
                 errorCode |= EErrorCode.NameDuplicate;
             }
 
-            if (errorCode != EErrorCode.Default)
+            if (errorCode != EErrorCode.NoError)
             {
                 return BadRequest(new Response()
                 {
+                    IsSuccess = false,
                     ErrorCode = errorCode
                 });
             }
@@ -205,10 +206,11 @@ namespace TodoList.Server.Controllers
                 return BadRequest();
             }
 
-            Response<Guid> response = new()
+            await SendVerifyMailAsync(signupInfo.Email);
+            Response response = new()
             {
-                Data = id.Value,
-                IsSuccess = true
+                IsSuccess = true,
+                ErrorCode = EErrorCode.NoError
             };
 
             return Accepted(response);
@@ -248,34 +250,6 @@ namespace TodoList.Server.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> SendVerifyMail([FromForm] string email)
-        {
-            string code = _verifyCodeService.GetVerifyCode(VERIFY_CODE_LENGTH);
-            await _verifyCodeService.SetVerifyCodeAsync(email, code);
-
-            string verifyUrl = Url.ActionLink("VerifyCode", "Identity")!;
-            string body = 
-                $@"<p>
-                     <form action=""{verifyUrl}"" method=""post"">
-                       <input type=""hidden"" value=""{email}"" name=""email""/>
-                       <button value=""{code}"" name=""code"" type=""submit"">인증하려면 클릭하세요</button>
-                     </form>
-                   </p>";
-
-            MailRequest mailRequest = new()
-            {
-                Body = body,
-                BodyEncoding = Encoding.UTF8,
-                IsBodyHtml = true,
-                Subject = "인증",
-                To = email
-            };
-
-            await _emailService.SendEmailAsync(mailRequest);
-            return Ok();
-        }
-
-        [HttpPost]
         public async Task<IActionResult> VerifyCodeAsync([FromForm] string email, [FromForm] string code)
         {
             bool isVerified = _verifyCodeService.IsVerifyCodeMatch(email, code);
@@ -308,6 +282,32 @@ namespace TodoList.Server.Controllers
             }
 
             return null;
+        }
+
+        private async Task SendVerifyMailAsync(string email)
+        {
+            string code = _verifyCodeService.GetVerifyCode(VERIFY_CODE_LENGTH);
+            await _verifyCodeService.SetVerifyCodeAsync(email, code);
+
+            string verifyUrl = Url.ActionLink("VerifyCode", "Identity")!;
+            string body =
+                $@"<p>
+                     <form action=""{verifyUrl}"" method=""post"">
+                       <input type=""hidden"" value=""{email}"" name=""email""/>
+                       <button value=""{code}"" name=""code"" type=""submit"">인증하려면 클릭하세요</button>
+                     </form>
+                   </p>";
+
+            MailRequest mailRequest = new()
+            {
+                Body = body,
+                BodyEncoding = Encoding.UTF8,
+                IsBodyHtml = true,
+                Subject = "인증",
+                To = email
+            };
+
+            await _emailService.SendEmailAsync(mailRequest);
         }
 
         private async Task SetCookieTokenAsync(AuthorizeToken token)

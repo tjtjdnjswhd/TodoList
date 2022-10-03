@@ -3,7 +3,7 @@
     [Flags]
     public enum EErrorCode
     {
-        Default = 0,
+        NoError = 0,
         AccessTokenNotMatch = 1,
         WrongAccessToken = 2,
         RefreshTokenExpired = 4,

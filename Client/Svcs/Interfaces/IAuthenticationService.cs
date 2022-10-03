@@ -4,8 +4,8 @@ namespace TodoList.Client.Svcs.Interfaces
 {
     public interface IAuthenticationService
     {
-        Task<bool> LoginAsync(LoginInfo loginInfo);
-        Task<bool> SignupAsync(SignupInfo signupInfo);
+        Task<EErrorCode> LoginAsync(LoginInfo loginInfo);
+        Task<EErrorCode> SignupAsync(SignupInfo signupInfo);
         Task LogoutAsync();
         Task<HttpResponseMessage> RefreshAsync();
         Task<bool> IsEmailExistAsync(string email);

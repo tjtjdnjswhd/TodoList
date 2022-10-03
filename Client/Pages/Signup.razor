@@ -1,4 +1,5 @@
-﻿@page "/signup"
+﻿@page "/signup/{returnurl?}"
+
 @inject NavigationManager navigation
 @inject IJSRuntime jsRuntime
 @inject IAuthenticationService authenticationService
@@ -8,7 +9,7 @@
 
     <p>
         <label for="email">Email </label>
-        <InputText id="email" @bind-Value="signupInfo.Email" @oninput="() => isEmailChecked = false" />
+        <InputText id="email" @bind-Value="signupInfo.Email" @oninput="() => isEmailChecked = false" autocomplete="0" />
         <button type="button" disabled="@(isEmailChecking || isEmailChecked)" @onclick="CheckEmail">
             @if (isEmailChecking)
             {
@@ -25,7 +26,7 @@
 
     <p>
         <label for="name">Name </label>
-        <InputText id="name" @bind-Value="signupInfo.Name" @oninput="() => isNameChecked = false" />
+        <InputText id="name" @bind-Value="signupInfo.Name" @oninput="() => isNameChecked = false" autocomplete="0" />
         <button type="button" disabled="@(isNameChecking || isNameChecked)" @onclick="CheckName">
             @if (isNameChecking)
             {
@@ -83,7 +84,7 @@
         if (string.IsNullOrEmpty(signupInfo.Email))
         {
             return;
-        };
+        }
 
         isEmailChecking = true;
         bool isEmailExist = await authenticationService.IsEmailExistAsync(signupInfo.Email);
@@ -105,7 +106,8 @@
         if (string.IsNullOrEmpty(signupInfo.Name))
         {
             return;
-        };
+        }
+
         isNameChecking = true;
         bool isNameExist = await authenticationService.IsNameExistAsync(signupInfo.Name);
         if (isNameExist)
@@ -131,17 +133,35 @@
         }
 
         loading = true;
-        if (await authenticationService.SignupAsync(signupInfo))
+        EErrorCode errorCode = await authenticationService.SignupAsync(signupInfo);
+        switch (errorCode)
         {
-            await jsRuntime.InvokeVoidAsync("Alert", "가입 완료됬습니다");
-            navigation.NavigateTo(ReturnUrl ?? "/");
+            case EErrorCode.NoError:
+                {
+                    await jsRuntime.InvokeVoidAsync("Alert", "가입 완료됬습니다");
+                    navigation.NavigateTo(ReturnUrl ?? "/");
+                    return;
+                }
+            case EErrorCode.EmailDuplicate:
+                {
+                    await jsRuntime.InvokeVoidAsync("Alert", "중복되는 이메일이 있습니다");
+                    isEmailChecked = false;
+                    break;
+                }
+            case EErrorCode.NameDuplicate:
+                {
+                    await jsRuntime.InvokeVoidAsync("Alert", "중복되는 이름이 있습니다");
+                    isNameChecked = false;
+                    break;
+                }
+            default:
+                {
+                    Debug.Assert(false);
+                    break;
+                }
         }
-        else
-        {
-            await jsRuntime.InvokeVoidAsync("Alert", "오류가 발생했습니다. 잠시 후 다시 시도해 주세요");
-            loading = false;
-            StateHasChanged();
-        }
+        loading = false;
+        StateHasChanged();
     }
 
     protected override async void OnInitialized()

@@ -7,8 +7,8 @@
     </div>
 }
 
-<EditForm Model="Model" OnValidSubmit="AddItem" @attributes="FormAttribute">
-    <InputText @bind-Value="Model.NewItemName" class="form-control" style="background-color: azure;" />
+<EditForm Model="model" OnValidSubmit="AddItem" @attributes="FormAttribute">
+    <InputText @bind-Value="model.NewItemName" class="form-control" style="background-color: azure;" />
     <button type="submit" class="btn btn-outline-primary" disabled="@creating">추가</button>
 </EditForm>
 
@@ -19,20 +19,20 @@
     [Parameter(CaptureUnmatchedValues = true)]
     public Dictionary<string, object> FormAttribute { get; set; }
 
-    private FormModel Model = new();
+    private FormModel model = new();
     private bool creating = false;
 
     public async void AddItem()
     {
-        if (string.IsNullOrEmpty(Model.NewItemName))
+        if (string.IsNullOrEmpty(model.NewItemName))
         {
             await jsRuntime.InvokeVoidAsync("Alert", "내용을 작성해 주세요");
             return;
         }
 
         creating = true;
-        await TodoItemService.AddItemAsync(Model.NewItemName);
-        Model.NewItemName = "";
+        await TodoItemService.AddItemAsync(model.NewItemName);
+        model.NewItemName = "";
         creating = false;
         StateHasChanged();
     }

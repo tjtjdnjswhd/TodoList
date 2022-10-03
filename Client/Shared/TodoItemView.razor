@@ -1,9 +1,9 @@
 ﻿@inject IJSRuntime jsRuntime
 
-<div class="d-flex align-items-center">
+<div class="d-flex align-items-center fs-5">
     <input type="checkbox" class="form-check" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; }" />
-    <input class="fs-5 w-100 mx-3 py-0" type="text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
-    <span class="fs-5">@Item.CreatedAt.ToString("HH:mm")</span>
+    <input class="w-100 mx-3 py-0" type="text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
+    <span>@Item.CreatedAt.ToString("HH:mm")</span>
     <button type="button" class="btn" @onclick="Delete">
         <span class="oi oi-x"></span>
     </button>
@@ -12,14 +12,17 @@
 @code {
     [Parameter]
     public TodoItemDto Item { get; set; }
-
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
 
     private ElementReference name;
-
     private string newName = string.Empty;
     private bool nameChanged = false;
+
+    protected override void OnParametersSet()
+    {
+        newName = Item.Name;
+    }
 
     private async void NameKeydown(KeyboardEventArgs keyboardEventArgs)
     {
@@ -52,10 +55,5 @@
         {
             await TodoItemService.DeleteItemAsync(Item);
         }
-    }
-
-    protected override void OnParametersSet()
-    {
-        newName = Item.Name;
     }
 }

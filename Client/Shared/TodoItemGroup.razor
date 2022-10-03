@@ -6,20 +6,13 @@
     </div>
 
     <div id="accordion-panel-@Date.ToString("yyMMdd")" class="accordion-collapse collapse show">
-        <button @onclick="SortItemByCreatedAt">
-            날짜
-        </button>
+        <button @onclick="SortItemByCreatedAt">날짜</button>
         <button @onclick="SortItemByName">이름</button>
 
         <div class="accordion-body">
-            @if (IsOrderChanged || IsInit)
+            @for (int i = 0; i < Items.Count; ++i)
             {
-                for (int i = 0; i < items.Count; ++i)
-                {
-                    <TodoItemView @key="items[i].Id" Item="items[i]" />
-                }
-                IsOrderChanged = false;
-                IsInit = false;
+                <TodoItemView @key="Items[i].Id" Item="Items[i]" />
             }
         </div>
     </div>
@@ -28,19 +21,14 @@
 @code {
     [Parameter]
     public DateTime Date { get; set; }
-
-    private List<TodoItemDto> items;
-    private bool IsAscending = true;
-    private bool IsOrderChanged = false;
-    private bool IsInit = true;
-
+    [Parameter]
+    public List<TodoItemDto> Items { get; set; }
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
 
-    protected override void OnParametersSet()
-    {
-        items = TodoItemService.GetItemsOrNull(Date) ?? throw new ArgumentNullException();
-    }
+    private bool IsAscending = true;
+    private bool IsOrderChanged = false;
+    private bool IsInit = true;
 
     public void SortItemByName()
     {

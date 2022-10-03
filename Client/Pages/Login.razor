@@ -11,7 +11,7 @@
 
     <p>
         <label for="email">Email </label>
-        <InputText id="email" @bind-Value="loginInfo.Email" />
+        <InputText id="email" @bind-Value="loginInfo.Email" autocomplete="0"/>
         <ValidationMessage For="() => loginInfo.Email" />
     </p>
 
@@ -43,16 +43,35 @@
     private async void LoginCallback()
     {
         loading = true;
-        if (!await authenticationService.LoginAsync(loginInfo))
-        {
-            await jsRuntime.InvokeVoidAsync("Alert", "이메일 혹은 비밀번호가 일치하지 않습니다");
-            loginInfo.Password = "";
-            loading = false;
-            StateHasChanged();
-            return;
-        }
+        EErrorCode errorCode = await authenticationService.LoginAsync(loginInfo);
 
-        navigation.NavigateTo(ReturnUrl ?? "/", true);
+        switch (errorCode)
+        {
+            case EErrorCode.NoError:
+                {
+                    navigation.NavigateTo(ReturnUrl ?? "/", true);
+                    return;
+                }
+            case EErrorCode.EmailNotExist:
+            case EErrorCode.WrongPassword:
+                {
+                    await jsRuntime.InvokeVoidAsync("Alert", "이메일 혹은 비밀번호가 일치하지 않습니다");
+                    loginInfo.Password = "";
+                    loading = false;
+                    StateHasChanged();
+                    break;
+                }
+            case EErrorCode.EmailNotVerified:
+                {
+                    await jsRuntime.InvokeVoidAsync("Alert", "이메일 인증 후 사용 가능합니다");
+                    break;
+                }
+            default:
+                {
+                    Debug.Assert(false);
+                    break;
+                }
+        }
     }
 
     protected override async void OnInitialized()

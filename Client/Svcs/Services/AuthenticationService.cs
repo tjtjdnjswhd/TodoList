@@ -21,46 +21,39 @@ namespace TodoList.Client.Svcs.Services
             _stateProvider = stateProvider;
         }
 
-        public async Task<bool> LoginAsync(LoginInfo loginInfo)
+        public async Task<EErrorCode> LoginAsync(LoginInfo loginInfo)
         {
             var httpClient = _httpClientFactory.CreateClient();
             HttpResponseMessage responseMessage = await httpClient.PostAsJsonAsync("api/identity/login", loginInfo);
+            Response? responseContent = await responseMessage.Content.ReadFromJsonAsync<Response>();
 
-            if (!responseMessage.IsSuccessStatusCode)
+            if (responseContent!.ErrorCode != EErrorCode.NoError)
             {
-                return false;
+                return responseContent.ErrorCode;
             }
 
             HttpResponseMessage claimsResponse = await httpClient.GetAsync("api/identity/getclaims");
             claimsResponse.EnsureSuccessStatusCode();
             Response<IEnumerable<ClaimDto>>? claimsContent = await claimsResponse.Content.ReadFromJsonAsync<Response<IEnumerable<ClaimDto>>>();
 
-            if (!claimsContent?.IsSuccess ?? true || claimsContent.Data == null)
-            {
-                await LogoutAsync();
-                return false;
-            }
-            else
-            {
-                await _claimsService.SetClaimsAsync(claimsContent!.Data);
-            }
-
+            await _claimsService.SetClaimsAsync(claimsContent!.Data);
             await _stateProvider.GetAuthenticationStateAsync();
 
-            return true;
+            return EErrorCode.NoError;
         }
 
-        public async Task<bool> SignupAsync(SignupInfo signupInfo)
+        public async Task<EErrorCode> SignupAsync(SignupInfo signupInfo)
         {
             var httpClient = _httpClientFactory.CreateClient();
             HttpResponseMessage responseMessage = await httpClient.PostAsJsonAsync("api/identity/signup", signupInfo);
-            if (!responseMessage.IsSuccessStatusCode)
+            Response? responseConent = await responseMessage.Content.ReadFromJsonAsync<Response>();
+
+            if (responseConent!.ErrorCode == EErrorCode.NoError)
             {
-                return false;
+                return responseConent.ErrorCode;
             }
 
-            Response<Guid>? response = await responseMessage.Content.ReadFromJsonAsync<Response<Guid>>();
-            return response?.IsSuccess ?? false;
+            return EErrorCode.NoError;
         }
 
         public async Task LogoutAsync()

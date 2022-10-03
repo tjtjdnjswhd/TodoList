@@ -1,67 +1,47 @@
 ﻿@implements IDisposable
 @inject ITodoItemService todoItemService
 
-@if (isLoading)
-{
-    <div>
-        loading...
-    </div>
-}
-else
-{
-    <button @onclick="ChangeOrder">정렬</button>
-    <CascadingValue Value="todoItemService" IsFixed="true">
-        <div class="accordion">
-            @{
-                if (IsOrderChanged || IsInit)
+<CascadingValue Value="todoItemService" IsFixed="true">
+    @if (isLoading)
+    {
+        <div>
+            loading...
+        </div>
+    }
+    else
+    {
+        <div class="todoitem-wrapper" style="max-height: calc(85vh - 60px); overflow: auto;">
+            <div class="accordion" style="overflow: auto;">
+                @foreach (var itemGroup in itemsDict.OrderBy(t => t.Key))
                 {
-                    var orderedItems = IsAscending ? itemsDict.OrderBy(t => t.Key) : itemsDict.OrderByDescending(t => t.Key);
-                    foreach (var itemGroup in orderedItems)
-                    {
-                        <TodoItemGroup @key="itemGroup.Key" Date="itemGroup.Key" />
-                    }
-                    IsOrderChanged = false;
-                    IsInit = false;
+                    <TodoItemGroup @key="itemGroup.Key" Date="itemGroup.Key" Items="itemGroup.Value" />
                 }
-            }
+            </div>
         </div>
-
-        <div class="position-fixed w-100 px-4 pb-3 bottom-0 start-0">
-            <TodoItemWrite class="input-group" />
-        </div>
-    </CascadingValue>
-}
+        <TodoItemWrite class="input-group my-3" />
+        @*<div class="position-fixed w-100 px-4 pb-3 bottom-0 start-0"></div>*@
+    }
+</CascadingValue>
 
 @code {
     private bool isLoading = true;
     private Dictionary<DateTime, List<TodoItemDto>> itemsDict;
 
-    private bool IsAscending = true;
-    private bool IsOrderChanged = false;
-    private bool IsInit = true;
+    public void Dispose()
+    {
+        todoItemService.ItemInitedEvent -= OnItemInited;
+    }
 
     protected override async void OnInitialized()
     {
-        todoItemService.ItemChangedEvent += OnItemChange;
+        todoItemService.ItemInitedEvent += OnItemInited;
         itemsDict = (await todoItemService.InitItemsAsync()) ?? throw new ArgumentNullException(nameof(itemsDict));
         isLoading = false;
         StateHasChanged();
     }
 
-    private void ChangeOrder()
-    {
-        IsAscending ^= true;
-        IsOrderChanged = true;
-        StateHasChanged();
-    }
-
-    private void OnItemChange(object? sender, EventArgs e)
+    private void OnItemInited(object? sender, EventArgs e)
     {
         StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        todoItemService.ItemChangedEvent -= OnItemChange;
     }
 }

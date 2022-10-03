@@ -4,7 +4,10 @@ namespace TodoList.Client.Svcs.Interfaces
 {
     public interface ITodoItemService
     {
-        public event EventHandler? ItemChangedEvent;
+        public event EventHandler? ItemInitedEvent;
+        public event EventHandler? ItemAddedEvent;
+        public event EventHandler? ItemDeletedEvent;
+        public event EventHandler? ItemUpdatedEvent;
 
         public Task<Dictionary<DateTime, List<TodoItemDto>>?> InitItemsAsync();
         public List<TodoItemDto>? GetItemsOrNull(DateTime date);

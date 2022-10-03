@@ -11,9 +11,13 @@ namespace TodoList.Client.Svcs.Services
     [Authorize]
     public sealed class TodoItemService : ITodoItemService
     {
+        public event EventHandler? ItemInitedEvent;
+        public event EventHandler? ItemAddedEvent;
+        public event EventHandler? ItemDeletedEvent;
+        public event EventHandler? ItemUpdatedEvent;
+
         private Dictionary<DateTime, List<TodoItemDto>> _itemsDict = new();
         private readonly IHttpClientFactory _httpClientFactory;
-        public event EventHandler? ItemChangedEvent;
 
         public TodoItemService(IHttpClientFactory httpClientFactory)
         {
@@ -40,7 +44,7 @@ namespace TodoList.Client.Svcs.Services
                 _itemsDict.Add(group.Key, group.ToList());
             }
 
-            OnItemChanged(EventArgs.Empty);
+            ItemInitedEvent?.Invoke(this, EventArgs.Empty);
             return _itemsDict;
         }
 
@@ -58,6 +62,7 @@ namespace TodoList.Client.Svcs.Services
             }
 
             items.Sort(comparison);
+            ItemUpdatedEvent?.Invoke(this, EventArgs.Empty);
         }
 
         public async Task AddItemAsync(string name)
@@ -73,7 +78,7 @@ namespace TodoList.Client.Svcs.Services
             message.EnsureSuccessStatusCode();
 
             Uri location = message.Headers.Location!;
-            var newItemResponse = await httpClient.GetFromJsonAsync<Response<TodoItemDto>>(location.PathAndQuery);
+            Response<TodoItemDto>? newItemResponse = await httpClient.GetFromJsonAsync<Response<TodoItemDto>>(location.PathAndQuery);
 
             if (newItemResponse?.IsSuccess ?? false)
             {
@@ -88,7 +93,7 @@ namespace TodoList.Client.Svcs.Services
                 }
             }
 
-            OnItemChanged(EventArgs.Empty);
+            ItemAddedEvent?.Invoke(this, EventArgs.Empty);
         }
 
         public async Task DeleteItemAsync(TodoItemDto item)
@@ -104,7 +109,7 @@ namespace TodoList.Client.Svcs.Services
                 _itemsDict.Remove(item.CreatedAt.Date);
             }
 
-            OnItemChanged(EventArgs.Empty);
+            ItemDeletedEvent?.Invoke(this, EventArgs.Empty);
         }
 
         public async Task EditItemNameAsync(TodoItemDto item, string newName)
@@ -126,7 +131,7 @@ namespace TodoList.Client.Svcs.Services
                 a.Name = newName;
             }
 
-            OnItemChanged(EventArgs.Empty);
+            ItemUpdatedEvent?.Invoke(this, EventArgs.Empty);
         }
 
         public async Task ToggleIsCompleteAsync(TodoItemDto item)
@@ -147,12 +152,7 @@ namespace TodoList.Client.Svcs.Services
                 a.IsComplete ^= true;
             }
 
-            OnItemChanged(EventArgs.Empty);
-        }
-
-        private void OnItemChanged(EventArgs e)
-        {
-            ItemChangedEvent?.Invoke(this, e);
+            ItemUpdatedEvent?.Invoke(this, EventArgs.Empty);
         }
     }
 }
