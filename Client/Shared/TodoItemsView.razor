@@ -10,8 +10,8 @@
     }
     else
     {
-        <div class="todoitem-wrapper" style="max-height: calc(85vh - 60px); overflow: auto;">
-            <div class="accordion" style="overflow: auto;">
+        <div class="todoitem-wrapper" >
+            <div class="accordion">
                 @foreach (var itemGroup in itemsDict.OrderBy(t => t.Key))
                 {
                     <TodoItemGroup @key="itemGroup.Key" Date="itemGroup.Key" Items="itemGroup.Value" />
@@ -19,7 +19,6 @@
             </div>
         </div>
         <TodoItemWrite class="input-group my-3" />
-        @*<div class="position-fixed w-100 px-4 pb-3 bottom-0 start-0"></div>*@
     }
 </CascadingValue>
 
@@ -29,18 +28,23 @@
 
     public void Dispose()
     {
-        todoItemService.ItemInitedEvent -= OnItemInited;
+        todoItemService.ItemInitedEvent -= StateChange;
+        todoItemService.ItemDeletedEvent -= StateChange;
+        todoItemService.ItemAddedEvent -= StateChange;
     }
 
     protected override async void OnInitialized()
     {
-        todoItemService.ItemInitedEvent += OnItemInited;
+        todoItemService.ItemInitedEvent += StateChange;
+        todoItemService.ItemDeletedEvent += StateChange;
+        todoItemService.ItemAddedEvent += StateChange;
+
         itemsDict = (await todoItemService.InitItemsAsync()) ?? throw new ArgumentNullException(nameof(itemsDict));
         isLoading = false;
         StateHasChanged();
     }
 
-    private void OnItemInited(object? sender, EventArgs e)
+    private void StateChange(object? sender, EventArgs e)
     {
         StateHasChanged();
     }

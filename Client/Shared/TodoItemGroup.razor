@@ -1,4 +1,6 @@
-﻿<div class="accordion-item">
+﻿@implements IDisposable
+
+<div class="accordion-item">
     <div class="accordion-header">
         <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#accordion-panel-@Date.ToString("yyMMdd")">
             @Date.ToString("yy.MM.dd")
@@ -6,13 +8,28 @@
     </div>
 
     <div id="accordion-panel-@Date.ToString("yyMMdd")" class="accordion-collapse collapse show">
-        <button @onclick="SortItemByCreatedAt">날짜</button>
-        <button @onclick="SortItemByName">이름</button>
+        <div class="input-group mt-2 px-3">
+            <input type="text" class="form-control" @oninput="Search" />
+            <select @bind="filter" class="form-select filter" @oninput="FilterItem">
+                <option value="@EFilter.All">전체</option>
+                <option value="@EFilter.Complete">완료</option>
+                <option value="@EFilter.NotComplete">미완료</option>
+            </select>
+        </div>
 
         <div class="accordion-body">
-            @for (int i = 0; i < Items.Count; ++i)
+            @if (filteredItems.Count() == 0)
             {
-                <TodoItemView @key="Items[i].Id" Item="Items[i]" />
+                <h3>일치하는 항목이 없습니다</h3>
+            }
+            else
+            {
+                <CascadingValue Value="this" IsFixed="true">
+                    @foreach (var item in filteredItems)
+                    {
+                    <TodoItemView @key="item.Id" Item="item" />
+                    }
+                </CascadingValue>
             }
         </div>
     </div>
@@ -26,23 +43,62 @@
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
 
-    private bool IsAscending = true;
-    private bool IsOrderChanged = false;
-    private bool IsInit = true;
+    private EFilter filter = EFilter.All;
+    private IEnumerable<TodoItemDto> filteredItems;
+    private string searchingText = string.Empty;
 
-    public void SortItemByName()
+    public void Dispose()
     {
-        TodoItemService.SortItems(Date, (t1, t2) => t1.Name.CompareTo(t2.Name) * (IsAscending ? 1 : -1));
-        IsOrderChanged = true;
-        IsAscending ^= true;
+        TodoItemService.ItemDeletedEvent -= StateChange;
+        TodoItemService.ItemUpdatedEvent -= StateChange;
+        TodoItemService.ItemAddedEvent -= StateChange;
+    }
+
+    public void FilterItem()
+    {
+        Func<TodoItemDto, bool> predicate = t => filter switch
+        {
+            EFilter.All => true,
+            EFilter.Complete => t.IsComplete,
+            EFilter.NotComplete => !t.IsComplete,
+            _ => false
+        };
+
+        if (string.IsNullOrEmpty(searchingText))
+        {
+            filteredItems = Items.Where(predicate);
+        }
+        else
+        {
+            filteredItems = Items.Where(t => predicate(t) & t.Name.Contains(searchingText, StringComparison.OrdinalIgnoreCase));
+        }
         StateHasChanged();
     }
 
-    public void SortItemByCreatedAt()
+    protected override void OnInitialized()
     {
-        TodoItemService.SortItems(Date, (t1, t2) => t1.CreatedAt.CompareTo(t2.CreatedAt) * (IsAscending ? 1 : -1));
-        IsOrderChanged = true;
-        IsAscending ^= true;
+        TodoItemService.ItemDeletedEvent += StateChange;
+        TodoItemService.ItemUpdatedEvent += StateChange;
+        TodoItemService.ItemAddedEvent += StateChange;
+        filteredItems = Items;
+    }
+
+    private void StateChange(object? sender, EventArgs e)
+    {
         StateHasChanged();
+    }
+
+
+    private void Search(ChangeEventArgs e)
+    {
+        searchingText = e.Value as string ?? string.Empty;
+        FilterItem();
+    }
+
+    public enum EFilter
+    {
+        All,
+        Complete,
+        NotComplete
     }
 }

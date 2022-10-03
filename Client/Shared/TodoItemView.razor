@@ -1,7 +1,8 @@
 ﻿@inject IJSRuntime jsRuntime
 
 <div class="d-flex align-items-center fs-5">
-    <input type="checkbox" class="form-check" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; }" />
+
+    <input type="checkbox" class="form-check" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; Group.FilterItem(); }" />
     <input class="w-100 mx-3 py-0" type="text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
     <span>@Item.CreatedAt.ToString("HH:mm")</span>
     <button type="button" class="btn" @onclick="Delete">
@@ -14,6 +15,8 @@
     public TodoItemDto Item { get; set; }
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
+    [CascadingParameter]
+    public TodoItemGroup Group { get; set; }
 
     private ElementReference name;
     private string newName = string.Empty;
