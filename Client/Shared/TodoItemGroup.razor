@@ -9,8 +9,8 @@
 
     <div id="accordion-panel-@Date.ToString("yyMMdd")" class="accordion-collapse collapse show">
         <div class="input-group mt-2 px-3">
-            <input type="text" class="form-control" @oninput="Search" />
-            <select @bind="filter" class="form-select filter" @oninput="FilterItem">
+            <input type="text" class="form-control border-dark" @oninput="Search" />
+            <select @bind="filter" class="form-select filter border-1 border-dark " @oninput="FilterItem">
                 <option value="@EFilter.All">전체</option>
                 <option value="@EFilter.Complete">완료</option>
                 <option value="@EFilter.NotComplete">미완료</option>
@@ -27,7 +27,7 @@
                 <CascadingValue Value="this" IsFixed="true">
                     @foreach (var item in filteredItems)
                     {
-                    <TodoItemView @key="item.Id" Item="item" />
+                        <TodoItemView @key="item.Id" Item="item" />
                     }
                 </CascadingValue>
             }
@@ -43,9 +43,9 @@
     [CascadingParameter]
     public ITodoItemService TodoItemService { get; set; }
 
+    private string searchingText = string.Empty;
     private EFilter filter = EFilter.All;
     private IEnumerable<TodoItemDto> filteredItems;
-    private string searchingText = string.Empty;
 
     public void Dispose()
     {
@@ -56,6 +56,7 @@
 
     public void FilterItem()
     {
+        Debug.Assert(Enum.IsDefined(filter));
         Func<TodoItemDto, bool> predicate = t => filter switch
         {
             EFilter.All => true,

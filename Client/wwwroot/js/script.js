@@ -25,3 +25,15 @@ window.Confirm = function (message) {
 window.Blur = function (element) {
   element.blur();
 }
+
+window.ScrollUp = function (element) {
+  element.scrollTo({
+    top: 0
+  });
+}
+
+window.ScrollDown = function (element) {
+  element.scrollTo({
+    top: 10000000
+  });
+}

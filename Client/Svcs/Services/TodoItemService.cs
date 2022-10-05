@@ -48,23 +48,6 @@ namespace TodoList.Client.Svcs.Services
             return _itemsDict;
         }
 
-        public List<TodoItemDto>? GetItemsOrNull(DateTime date)
-        {
-            return _itemsDict.GetValueOrDefault(date);
-        }
-
-        public void SortItems(DateTime date, Comparison<TodoItemDto> comparison)
-        {
-            List<TodoItemDto>? items = GetItemsOrNull(date);
-            if (items == null)
-            {
-                return;
-            }
-
-            items.Sort(comparison);
-            ItemUpdatedEvent?.Invoke(this, EventArgs.Empty);
-        }
-
         public async Task AddItemAsync(string name)
         {
             var httpClient = _httpClientFactory.CreateClient();

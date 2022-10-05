@@ -1,4 +1,19 @@
 ﻿.todoitem-wrapper {
     max-height: calc(100vh - 150px);
     overflow: auto;
+    scroll-behavior: smooth;
 }
+
+    .todoitem-wrapper::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .todoitem-wrapper::-webkit-scrollbar-thumb {
+        border-radius: 3px;
+        background-color: gray;
+    }
+
+    .todoitem-wrapper::-webkit-scrollbar-track {
+        border-radius: 3px;
+        background-color: lightgray;
+    }

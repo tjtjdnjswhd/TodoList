@@ -1,9 +1,8 @@
 ﻿@inject IJSRuntime jsRuntime
 
 <div class="d-flex align-items-center fs-5">
-
     <input type="checkbox" class="form-check" @bind="Item.IsComplete" @oninput="async () => { await TodoItemService.ToggleIsCompleteAsync(Item); Item.IsComplete ^= true; Group.FilterItem(); }" />
-    <input class="w-100 mx-3 py-0" type="text" @ref="name" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
+    <input class="w-100 mx-3 py-0" type="text" @ref="nameInput" @bind-value="newName" @oninput="() => nameChanged = true" @onkeydown="NameKeydown" @onblur="ChangeName" />
     <span>@Item.CreatedAt.ToString("HH:mm")</span>
     <button type="button" class="btn" @onclick="Delete">
         <span class="oi oi-x"></span>
@@ -18,7 +17,7 @@
     [CascadingParameter]
     public TodoItemGroup Group { get; set; }
 
-    private ElementReference name;
+    private ElementReference nameInput;
     private string newName = string.Empty;
     private bool nameChanged = false;
 
@@ -31,24 +30,25 @@
     {
         if (keyboardEventArgs.Key.Equals("Enter", StringComparison.OrdinalIgnoreCase))
         {
-            await jsRuntime.InvokeVoidAsync("Blur", name);
+            await jsRuntime.InvokeVoidAsync("Blur", nameInput);
         }
     }
 
     private async void ChangeName()
     {
-        if (string.IsNullOrEmpty(newName))
-        {
-            await jsRuntime.InvokeVoidAsync("Alert", "내용을 작성해 주세요");
-            newName = Item.Name;
-            StateHasChanged();
-            return;
-        }
-
         if (nameChanged)
         {
-            await TodoItemService.EditItemNameAsync(Item, newName);
-            nameChanged = false;
+            if (string.IsNullOrEmpty(newName))
+            {
+                await jsRuntime.InvokeVoidAsync("Alert", "내용을 작성해 주세요");
+                newName = Item.Name;
+                StateHasChanged();
+            }
+            else
+            {
+                await TodoItemService.EditItemNameAsync(Item, newName);
+                nameChanged ^= true;
+            }
         }
     }
 

@@ -1,11 +1,12 @@
 ﻿@using Microsoft.IdentityModel.JsonWebTokens
+
 <AuthorizeView>
     <Authorized>
         <a href="#">@context.User.FindFirst(c => c.Type == JwtRegisteredClaimNames.Email)!.Value</a>
-        <a href="/logout">Log out</a>
+        <a href="/logout">로그아웃</a>
     </Authorized>
     <NotAuthorized>
-        <a href="/signup">Sign up</a>
-        <a href="/login">Log in</a>
+        <a href="/signup">회원가입</a>
+        <a href="/login">로그인</a>
     </NotAuthorized>
 </AuthorizeView>

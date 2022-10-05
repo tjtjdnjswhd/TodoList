@@ -4,63 +4,68 @@
 @inject IJSRuntime jsRuntime
 @inject IAuthenticationService authenticationService
 
-<EditForm Model="signupInfo" OnValidSubmit="SignupCallback">
-    <DataAnnotationsValidator />
+<div class="panel rounded-3">
+    <h3>회원가입</h3>
+    <EditForm Model="signupInfo" OnValidSubmit="SignupCallback">
+        <DataAnnotationsValidator />
 
-    <p>
-        <label for="email">Email </label>
-        <InputText id="email" @bind-Value="signupInfo.Email" @oninput="() => isEmailChecked = false" autocomplete="0" />
-        <button type="button" disabled="@(isEmailChecking || isEmailChecked)" @onclick="CheckEmail">
-            @if (isEmailChecking)
+        <div class="mb-3">
+            <label class="form-label" for="email">이메일 </label>
+            <InputText id="email" class="form-control border-dark" @bind-Value="signupInfo.Email" @oninput="() => isEmailChecked = false" autocomplete="0" />
+            <button class="btn btn-outline-secondary px-2 py-1 mt-1" type="button" disabled="@(isEmailChecking || isEmailChecked)" @onclick="CheckEmail">
+                @if (isEmailChecking)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                중복 확인
+            </button>
+            <ValidationMessage For="() => signupInfo.Email" />
+            @if (!isEmailChecked && displayCheckMessage)
             {
-                <span class="spinner-border spinner-border-sm"></span>
+                <p class="validation-message">이메일 중복확인 후 사용 가능합니다</p>
             }
-            중복 확인
-        </button>
-        <ValidationMessage For="() => signupInfo.Email" />
-        @if (!isEmailChecked && displayCheckMessage)
-        {
-        <p class="validation-message">이메일 중복확인 후 사용 가능합니다</p>
-        }
-    </p>
+        </div>
 
-    <p>
-        <label for="name">Name </label>
-        <InputText id="name" @bind-Value="signupInfo.Name" @oninput="() => isNameChecked = false" autocomplete="0" />
-        <button type="button" disabled="@(isNameChecking || isNameChecked)" @onclick="CheckName">
-            @if (isNameChecking)
+        <div class="mb-3">
+            <label class="form-label" for="name">이름 </label>
+            <InputText id="name" class="form-control border-dark" @bind-Value="signupInfo.Name" @oninput="() => isNameChecked = false" autocomplete="0" />
+            <button class="btn btn-outline-secondary px-2 py-1 mt-1" type="button" disabled="@(isNameChecking || isNameChecked)" @onclick="CheckName">
+                @if (isNameChecking)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                중복 확인
+            </button>
+            <ValidationMessage For="() => signupInfo.Name" />
+            @if (!isNameChecked && displayCheckMessage)
             {
-                <span class="spinner-border spinner-border-sm"></span>
+                <p class="validation-message">이름 중복확인 후 사용 가능합니다</p>
             }
-            중복 확인
-        </button>
-        <ValidationMessage For="() => signupInfo.Name" />
-        @if (!isNameChecked && displayCheckMessage)
-        {
-        <p class="validation-message">이름 중복확인 후 사용 가능합니다</p>
-        }
-    </p>
+        </div>
 
-    <p>
-        <label for="password">Password </label>
-        <InputText id="password" type="password" @bind-Value="signupInfo.Password" />
-        <ValidationMessage For="() => signupInfo.Password" />
-    </p>
+        <div class="mb-3">
+            <label class="form-label" for="password">비밀번호 </label>
+            <InputText class="form-control border-dark" id="password" type="password" @bind-Value="signupInfo.Password" />
+            <ValidationMessage For="() => signupInfo.Password" />
+        </div>
 
-    <p>
-        <label for="passwordCheck">Password check </label>
-        <InputText id="passwordCheck" type="password" @bind-Value="signupInfo.PasswordCheck" />
-        <ValidationMessage For="() => signupInfo.PasswordCheck" />
-    </p>
+        <div class="mb-3">
+            <label class="form-label" for="passwordCheck">비밀번호 확인 </label>
+            <InputText class="form-control border-dark" id="passwordCheck" type="password" @bind-Value="signupInfo.PasswordCheck" />
+            <ValidationMessage For="() => signupInfo.PasswordCheck" />
+        </div>
 
-    <button type="submit" disabled="@loading">
-        @if (loading)
-        {
-            <span class="spinner-border spinner-border-sm"></span>
-        }
-        회원가입
-    </button>
-</EditForm>
+        <div class="mb-3">
+            <button class="btn btn-outline-secondary px-2 py-1 mt-1" type="submit" disabled="@loading">
+                @if (loading)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                회원가입
+            </button>
+        </div>
+    </EditForm>
+</div>
 
 @code {
     [Parameter]

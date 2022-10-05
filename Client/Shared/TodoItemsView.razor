@@ -1,16 +1,17 @@
 ﻿@implements IDisposable
 @inject ITodoItemService todoItemService
+@inject IJSRuntime jsRuntime
 
 <CascadingValue Value="todoItemService" IsFixed="true">
     @if (isLoading)
     {
-        <div>
-            loading...
+        <div class="justify-content-center">
+            <h3>loading...</h3>
         </div>
     }
     else
     {
-        <div class="todoitem-wrapper" >
+        <div class="todoitem-wrapper" @ref="wrapper">
             <div class="accordion">
                 @foreach (var itemGroup in itemsDict.OrderBy(t => t.Key))
                 {
@@ -25,6 +26,7 @@
 @code {
     private bool isLoading = true;
     private Dictionary<DateTime, List<TodoItemDto>> itemsDict;
+    private ElementReference wrapper;
 
     public void Dispose()
     {
@@ -38,10 +40,16 @@
         todoItemService.ItemInitedEvent += StateChange;
         todoItemService.ItemDeletedEvent += StateChange;
         todoItemService.ItemAddedEvent += StateChange;
+        todoItemService.ItemAddedEvent += (sender, e) => Down();
 
         itemsDict = (await todoItemService.InitItemsAsync()) ?? throw new ArgumentNullException(nameof(itemsDict));
         isLoading = false;
         StateHasChanged();
+    }
+
+    private async void Down()
+    {
+        await jsRuntime.InvokeVoidAsync("ScrollDown", wrapper);
     }
 
     private void StateChange(object? sender, EventArgs e)
