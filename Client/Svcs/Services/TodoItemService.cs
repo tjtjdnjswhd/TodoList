@@ -36,7 +36,7 @@ namespace TodoList.Client.Svcs.Services
             {
                 return null;
             }
-            
+
             var groupByDate = items.Data.GroupBy(t => t.CreatedAt.Date);
 
             foreach (var group in groupByDate)

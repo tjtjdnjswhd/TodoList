@@ -1,0 +1,74 @@
+﻿@inject IJSRuntime jsRuntime
+@inject NavigationManager navigation
+@inject IAuthenticationService authenticationService
+
+<div class="panel rounded-3">
+    <h3>로그인</h3>
+    <EditForm Model="loginInfo" OnValidSubmit="LoginCallback">
+        <DataAnnotationsValidator />
+
+        <div class="mb-3">
+            <label class="form-label" for="email">이메일 </label>
+            <InputText class="form-control border-dark" id="email" @bind-Value="loginInfo.Email" autocomplete="0" />
+            <ValidationMessage For="() => loginInfo.Email" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="password">비밀번호 </label>
+            <InputText class="form-control border-dark" id="password" type="password" @bind-Value="loginInfo.Password" />
+            <ValidationMessage For="() => loginInfo.Password" />
+        </div>
+
+        <div class="mt-3">
+            <button class="btn btn-outline-secondary" type="submit" disabled="@loading">
+                @if (loading)
+                {
+                    <span class="spinner-border spinner-border-sm"></span>
+                }
+                로그인
+            </button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter]
+    public string? ReturnUrl { get; set; }
+
+    private LoginInfo loginInfo = new();
+    private bool loading = false;
+
+    private async void LoginCallback()
+    {
+        loading = true;
+        EErrorCode errorCode = await authenticationService.LoginAsync(loginInfo);
+
+        switch (errorCode)
+        {
+            case EErrorCode.NoError:
+                {
+                    navigation.NavigateTo(ReturnUrl ?? "/", true);
+                    return;
+                }
+            case EErrorCode.EmailNotExist:
+            case EErrorCode.WrongPassword:
+                {
+                    await jsRuntime.InvokeVoidAsync("Alert", "이메일 혹은 비밀번호가 일치하지 않습니다");
+                    loginInfo.Password = "";
+                    loading = false;
+                    StateHasChanged();
+                    break;
+                }
+            case EErrorCode.EmailNotVerified:
+                {
+                    await jsRuntime.InvokeVoidAsync("Alert", "이메일 인증 후 사용 가능합니다");
+                    break;
+                }
+            default:
+                {
+                    Debug.Assert(false);
+                    break;
+                }
+        }
+    }
+}
