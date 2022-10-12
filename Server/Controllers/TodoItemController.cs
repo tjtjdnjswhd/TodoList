@@ -14,17 +14,12 @@ using TodoList.Shared.Svcs.Interfaces;
 
 namespace TodoList.Server.Controllers
 {
-    [Route("api/[controller]/[action]")]
     [ApiController]
+    [Produces("application/json")]
+    [Route("api/[controller]/[action]")]
     public class TodoItemController : ControllerBase
     {
-        private static readonly Response ITEM_NOT_FOUND_RESPONSE = new()
-        {
-            IsSuccess = false,
-            ErrorCode = EErrorCode.TodoItemNotFound
-        };
-
-        private static Guid GetUserId(ClaimsPrincipal user) => Guid.Parse(user.FindFirstValue(JwtRegisteredClaimNames.Jti));
+        private static readonly Response ITEM_NOT_FOUND_RESPONSE = new(EErrorCode.TodoItemNotFound);
 
         private readonly ITodoItemService _todoItemService;
         private readonly ILogger<TodoItemController> _logger;
@@ -37,8 +32,17 @@ namespace TodoList.Server.Controllers
             _mapper = mapper;
         }
 
+        /// <summary>
+        /// 유저가 작성한 아이템 리스트 또는 단일 아이템을 반환합니다.
+        /// </summary>
+        /// <param name="itemId"></param>
+        /// <returns></returns>
         [HttpGet]
         [Authorize]
+        [ProducesResponseType(typeof(Response<TodoItemDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Response<IEnumerable<TodoItemDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetAsync(int? itemId)
         {
             Guid id = GetUserId(User);
@@ -46,12 +50,7 @@ namespace TodoList.Server.Controllers
             {
                 IEnumerable<TodoItem> items = _todoItemService.GetByUserId(id);
                 IEnumerable<TodoItemDto> itemDtos = _mapper.Map<IEnumerable<TodoItem>, IEnumerable<TodoItemDto>>(items);
-                Response<IEnumerable<TodoItemDto>> response = new()
-                {
-                    Data = itemDtos,
-                    IsSuccess = true
-                };
-                return Ok(response);
+                return Ok(new Response<IEnumerable<TodoItemDto>>(EErrorCode.NoError, itemDtos));
             }
             else
             {
@@ -67,18 +66,18 @@ namespace TodoList.Server.Controllers
                 }
 
                 TodoItemDto itemDto = _mapper.Map<TodoItem, TodoItemDto>(item);
-                Response<TodoItemDto> response = new()
-                {
-                    Data = itemDto,
-                    IsSuccess = true
-                };
-
-                return Ok(response);
+                return Ok(new Response<TodoItemDto>(EErrorCode.NoError, itemDto));
             }
         }
 
+        /// <summary>
+        /// 새 아이템을 생성합니다.
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         [HttpPost]
         [Authorize]
+        [ProducesResponseType(StatusCodes.Status201Created)]
         public IActionResult Post([FromForm] string name)
         {
             Guid id = GetUserId(User);
@@ -87,14 +86,28 @@ namespace TodoList.Server.Controllers
             return CreatedAtAction("Get", "TodoItem", routeValues: new { itemId }, value: null);
         }
 
+        /// <summary>
+        /// 해당하는 아이템을 삭제합니다.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
         [HttpPatch]
         [Authorize]
-        public async Task<IActionResult> PatchAsync([FromForm] int itemId, [FromForm] string newName)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> PatchAsync([FromBody] TodoItemUpdateInfo info)
         {
+            if (info.NewName is null)
+            {
+                ModelState.AddModelError(nameof(TodoItemUpdateInfo.NewName), new ArgumentNullException(nameof(TodoItemUpdateInfo.NewName)), MetadataProvider.GetMetadataForType(typeof(TodoItemUpdateInfo)));
+                return UnprocessableEntity(ModelState);
+            }
 
             Guid id = GetUserId(User);
 
-            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(info.ItemId);
 
             if (item == null)
             {
@@ -106,24 +119,25 @@ namespace TodoList.Server.Controllers
                 return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
-            await _todoItemService.EditNameAsync(itemId, newName);
-
-            Response<object> response = new()
-            {
-                Data = new { itemId, name = newName },
-                IsSuccess = true
-            };
-
-            return Ok(response);
+            await _todoItemService.EditNameAsync(info.ItemId, info.NewName);
+            return Ok();
         }
 
+        /// <summary>
+        /// 해당하는 아이템을 삭제합니다.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
         [HttpDelete]
         [Authorize]
-        public async Task<IActionResult> DeleteAsync(int itemId)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> DeleteAsync([FromBody] TodoItemUpdateInfo info)
         {
             Guid id = GetUserId(User);
 
-            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(info.ItemId);
 
             if (item == null)
             {
@@ -135,24 +149,24 @@ namespace TodoList.Server.Controllers
                 return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
-            await _todoItemService.DeleteAsync(itemId);
-
-            Response<object> response = new()
-            {
-                Data = new { itemId },
-                IsSuccess = true
-            };
-
-            return Ok(response);
+            await _todoItemService.DeleteAsync(info.ItemId);
+            return Ok();
         }
 
+        /// <summary>
+        /// 해당하는 아이템의 완료 여부를 토글합니다.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <returns></returns>
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> ToggleCompleteAsync([FromForm] int itemId)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ToggleCompleteAsync([FromBody] TodoItemUpdateInfo info)
         {
             Guid id = GetUserId(User);
-
-            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId);
+            TodoItem? item = await _todoItemService.GetByIdOrNullAsync(info.ItemId);
 
             if (item == null)
             {
@@ -166,20 +180,15 @@ namespace TodoList.Server.Controllers
 
             if (item.IsComplete)
             {
-                await _todoItemService.UncompleteAsync(itemId);
+                await _todoItemService.UncompleteAsync(info.ItemId);
             }
             else
             {
-                await _todoItemService.CompleteAsync(itemId);
+                await _todoItemService.CompleteAsync(info.ItemId);
             }
-
-            Response<object> response = new()
-            {
-                Data = new { itemId, isComplete = !item.IsComplete },
-                IsSuccess = true
-            };
-
-            return Ok(response);
+            return Ok();
         }
+
+        private static Guid GetUserId(ClaimsPrincipal user) => Guid.Parse(user.FindFirstValue(JwtRegisteredClaimNames.Jti));
     }
 }

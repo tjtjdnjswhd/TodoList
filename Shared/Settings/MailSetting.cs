@@ -2,7 +2,7 @@
 
 namespace TodoList.Shared.Settings
 {
-    public sealed class MailSettings
+    public class MailSettings
     {
         public string From { get; set; }
         public string DisplayName { get; set; }

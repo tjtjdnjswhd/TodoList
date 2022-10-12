@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -17,28 +16,37 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 
+//Services
 builder.Services.AddScoped<IUserService, UserService>();
-builder.Services.AddScoped<ITodoItemService, TodoItemService>();
-builder.Services.AddScoped<IEmailService, EmailService>();
-builder.Services.AddScoped<IVerifyCodeService, VerifyCodeService>();
-builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.Configure<PasswordHashSettings>(builder.Configuration.GetRequiredSection("PasswordHashSettings"));
 
+builder.Services.AddScoped<ITodoItemService, TodoItemService>();
+
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.Configure<MailSettings>(builder.Configuration.GetRequiredSection("MailSettings"));
+
+builder.Services.AddScoped<IVerifyCodeService, VerifyCodeService>();
+builder.Services.Configure<VerifyCodeSettings>(builder.Configuration.GetRequiredSection("VerifyCodeSettings"));
+
+IConfigurationSection tokenSettingConf = builder.Configuration.GetRequiredSection("AuthorizeTokenSetting");
+builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.Configure<AuthorizeTokenSetting>(tokenSettingConf);
+AuthorizeTokenSetting tokenSetting = ConfigurationBinder.Get<AuthorizeTokenSetting>(tokenSettingConf);
+
+//DB Connection
 string connectionString = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddSqlServer<TodoListDbContext>(connectionString, option =>
 {
     option.MigrationsAssembly("TodoList.Migrations");
 });
 
+//IDistributedCache
 builder.Services.AddDistributedSqlServerCache(option =>
 {
     option.ConnectionString = connectionString;
     option.SchemaName = "dbo";
     option.TableName = "RefreshTokenCache";
 });
-
-builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
-builder.Services.Configure<PasswordHashSettings>(builder.Configuration.GetSection("PasswordHashSettings"));
-builder.Services.Configure<DistributedCacheEntryOptions>(builder.Configuration.GetSection("CacheOptions"));
 
 builder.Services.AddAutoMapper(typeof(CustomProfile));
 
@@ -48,6 +56,7 @@ builder.Services.AddAuthentication(option =>
     option.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 }).AddJwtBearer(option =>
 {
+    IConfigurationSection jwt = builder.Configuration.GetRequiredSection("Jwt");
     option.SaveToken = true;
     option.TokenValidationParameters = new()
     {
@@ -55,9 +64,9 @@ builder.Services.AddAuthentication(option =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"])),
+        ValidIssuer = jwt["Issuer"],
+        ValidAudience = jwt["Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt["SecretKey"])),
         ClockSkew = TimeSpan.Zero,
     };
 
@@ -73,13 +82,14 @@ builder.Services.AddAuthentication(option =>
         {
             if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
             {
-                context.Response.Headers.Add("IS-ACCESS-TOKEN-EXPIRED", "true");
+                context.Response.Headers.Add(tokenSetting.IsAccessTokenExpiredHeader, "true");
             }
             return Task.CompletedTask;
         },
         OnMessageReceived = context =>
         {
-            if (context.Request.Cookies.TryGetValue("accessToken", out string? accessToken))
+            //Cookie의 access token을 읽어 인증
+            if (context.Request.Cookies.TryGetValue(tokenSetting.AccessTokenKey, out string? accessToken))
             {
                 context.Token = accessToken;
             }
@@ -92,36 +102,42 @@ if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSwaggerGen(option =>
     {
-        option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+        OpenApiSecurityScheme securityScheme = new()
         {
-            Description = "JWT Authorization header using the Bearer scheme",
-            Name = "Authorization",
-            In = ParameterLocation.Header,
+            Description = $"Jwt Authorization cookie using the Bearer scheme. cookie[{tokenSetting.AccessTokenKey}] set from 'api/identity/login'. EX) {tokenSetting.AccessTokenKey}: 1vssa5vfs1savf;",
+            Name = tokenSetting.AccessTokenKey,
+            In = ParameterLocation.Cookie,
             Type = SecuritySchemeType.ApiKey,
-            Scheme = "Bearer"
-        });
+            Scheme = "Bearer",
+            Reference = new()
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        };
+
+        option.AddSecurityDefinition("Bearer", securityScheme);
 
         option.AddSecurityRequirement(new OpenApiSecurityRequirement()
         {
-            {
-                new OpenApiSecurityScheme
-                {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    },
-                    Scheme = "oauth2",
-                    Name = "Bearer",
-                    In = ParameterLocation.Header,
-                },
-                new List<string>()
-            }
+            { securityScheme , new List<string>() }
+        });
+
+        string filePath = Path.Combine(AppContext.BaseDirectory, "TodoList.Server.xml");
+        option.IncludeXmlComments(filePath);
+
+        option.SchemaFilter<GenericTypeFilter>();
+
+        option.SwaggerDoc("v1", new OpenApiInfo()
+        {
+            Title = "Todoitem API",
+            Version = "v1",
         });
     });
 }
 
 var app = builder.Build();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -129,7 +145,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(option =>
     {
-        option.SwaggerEndpoint("/swagger/v1/swagger.json", "v1");
+        option.SwaggerEndpoint("/swagger/v1/swagger.json", "Todoitem API");
     });
 }
 else

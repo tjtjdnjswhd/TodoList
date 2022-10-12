@@ -26,22 +26,25 @@ namespace TodoList.Client
             var response = await base.SendAsync(request, cancellationToken);
 
             if (request.RequestUri != _refreshUri
-                && response.Headers.Any(h => h.Key.Equals("IS-ACCESS-TOKEN-EXPIRED", StringComparison.OrdinalIgnoreCase)
-                && h.Value.Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase))))
+                && response.Headers.TryGetValues("IS-ACCESS-TOKEN-EXPIRED", out IEnumerable<string>? values)
+                && values.Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase)))
             {
                 HttpResponseMessage refreshResponse = await _authenticationService.RefreshAsync();
 
-                if (refreshResponse.Headers.Any(h => h.Key.Equals("IS-REFRESH-TOKEN-EXPIRED", StringComparison.OrdinalIgnoreCase)
-                    && h.Value.Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase))))
+                if (refreshResponse.Headers.TryGetValues("IS-REFRESH-TOKEN-EXPIRED", out values)
+                    && values.Any(v => v.Equals("true", StringComparison.OrdinalIgnoreCase)))
                 {
                     await _jsRuntime.InvokeVoidAsync("Alert", "토큰이 만료되 재 로그인 후 이용해 주시기 바랍니다");
                     await _authenticationService.LogoutAsync();
 
                     _navigationManager.NavigateTo("/login", true);
                 }
-
-                response = await base.SendAsync(request, cancellationToken);
+                else
+                {
+                    response = await base.SendAsync(request, cancellationToken);
+                }
             }
+
             return response;
         }
     }

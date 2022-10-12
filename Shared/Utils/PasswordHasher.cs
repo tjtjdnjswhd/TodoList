@@ -16,7 +16,7 @@ namespace TodoList.Shared.Utils
         [UnsupportedOSPlatform("browser")]
         public static byte[] HashPassword(string password, byte[] salt, PasswordHashSettings settings)
         {
-            using Rfc2898DeriveBytes rfc2898DeriveBytes = new(password + settings.Pepper, salt, settings.HashIterations, HashAlgorithmName.SHA512);
+            using Rfc2898DeriveBytes rfc2898DeriveBytes = new(password + settings.Pepper, salt, settings.HashIterations, new(settings.HashAlgorithmName));
             byte[] hash = rfc2898DeriveBytes.GetBytes(settings.HashLength);
             return hash;
         }

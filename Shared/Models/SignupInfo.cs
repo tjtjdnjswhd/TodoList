@@ -21,5 +21,7 @@ namespace TodoList.Shared.Models
 
         [Required(AllowEmptyStrings = false, ErrorMessage = "사용할 이름을 입력해 주세요")]
         public string Name { get; set; }
+        [Required]
+        public string EmailVerifyUrl { get; set; }
     }
 }

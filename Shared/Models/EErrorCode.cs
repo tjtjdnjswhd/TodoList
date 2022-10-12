@@ -1,6 +1,9 @@
-﻿namespace TodoList.Shared.Models
+﻿using System.Text.Json.Serialization;
+
+namespace TodoList.Shared.Models
 {
     [Flags]
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum EErrorCode
     {
         NoError = 0,
@@ -10,7 +13,7 @@
         EmailNotExist = 8,
         WrongPassword = 16,
         EmailDuplicate = 32,
-        NameDuplicate = 64,
+        UserNameDuplicate = 64,
         EmailVerifyFail = 128,
         TodoItemNotFound = 256,
         EmailNotVerified = 512

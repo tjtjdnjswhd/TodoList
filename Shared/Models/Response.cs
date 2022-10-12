@@ -4,12 +4,22 @@ namespace TodoList.Shared.Models
 {
     public class Response
     {
-        public bool IsSuccess { get; set; } = false;
-        public EErrorCode ErrorCode { get; set; } = EErrorCode.NoError;
+        public Response(EErrorCode errorCode)
+        {
+            ErrorCode = errorCode;
+        }
+
+        public bool IsSuccess => ErrorCode == EErrorCode.NoError;
+        public EErrorCode ErrorCode { get; }
     }
 
     public sealed class Response<T> : Response
     {
-        public T Data { get; set; }
+        public Response(EErrorCode errorCode, T data) : base(errorCode)
+        {
+            Data = data;
+        }
+
+        public T Data { get; }
     }
 }

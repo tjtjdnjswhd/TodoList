@@ -15,6 +15,5 @@ namespace TodoList.Shared.Svcs.Interfaces
         public Task VerifyEmailAsync(string email);
         public Task<bool> ChangePasswordAsync(Guid id, string oldPassword, string newPassword);
         public Task<bool> ChangeNameAsync(Guid id, string newName);
-        public Task<bool> ChangeEmailAsync(Guid id, string newEmail);
     }
 }

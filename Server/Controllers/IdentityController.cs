@@ -1,8 +1,8 @@
 ﻿using AutoMapper;
 
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 
 using System.Security.Claims;
 using System.Text;
@@ -10,19 +10,17 @@ using System.Text;
 using TodoList.Shared.Data.Dtos;
 using TodoList.Shared.Data.Models;
 using TodoList.Shared.Models;
+using TodoList.Shared.Settings;
 using TodoList.Shared.Svcs.Interfaces;
 
 namespace TodoList.Server.Controllers
 {
-    [Route("api/[controller]/[action]")]
     [ApiController]
+    [Produces("application/json")]
+    [Route("api/[controller]/[action]")]
     public sealed class IdentityController : ControllerBase
     {
         private static readonly int VERIFY_CODE_LENGTH = 16;
-        private static readonly int REFRESH_TOKEN_EXPIRATION_DAYS = 30;
-        private static readonly string ACCESS_TOKEN = "accessToken";
-        private static readonly string REFRESH_TOKEN = "refreshToken";
-        private static DateTimeOffset AccessTokenExpiration => DateTimeOffset.Now.AddMinutes(30);
 
         private readonly IUserService _userService;
         private readonly IJwtService _jwtService;
@@ -31,8 +29,16 @@ namespace TodoList.Server.Controllers
         private readonly IDistributedCache _cache;
         private readonly IMapper _mapper;
         private readonly ILogger<IdentityController> _logger;
+        private readonly AuthorizeTokenSetting _authorizeTokenSetting;
 
-        public IdentityController(IUserService userService, IJwtService jwtService, IEmailService emailService, IVerifyCodeService verifyCodeService, IDistributedCache cache, IMapper mapper, ILogger<IdentityController> logger)
+        public IdentityController(IUserService userService,
+                                  IJwtService jwtService,
+                                  IEmailService emailService,
+                                  IVerifyCodeService verifyCodeService,
+                                  IDistributedCache cache,
+                                  IMapper mapper,
+                                  IOptions<AuthorizeTokenSetting> tokenSetting,
+                                  ILogger<IdentityController> logger)
         {
             _userService = userService;
             _jwtService = jwtService;
@@ -41,76 +47,85 @@ namespace TodoList.Server.Controllers
             _cache = cache;
             _mapper = mapper;
             _logger = logger;
+            _authorizeTokenSetting = tokenSetting.Value;
         }
 
+        /// <summary>
+        /// 같은 이메일이 있는지 확인해 반환합니다.
+        /// </summary>
+        /// <param name="email"></param>
+        /// <returns></returns>
         [HttpGet]
+        [ProducesResponseType(typeof(Response<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> IsEmailExistAsync(string email)
         {
-            return Ok(new Response<bool>()
-            {
-                Data = await _userService.IsEmailExistAsync(email),
-                IsSuccess = true
-            });
+            return Ok(new Response<bool>(EErrorCode.NoError, await _userService.IsEmailExistAsync(email)));
         }
 
+        /// <summary>
+        /// 같은 이름이 있는지 확인해 반환합니다..
+        /// </summary>
+        /// <param name="name"></param>
+        /// <returns></returns>
         [HttpGet]
+        [ProducesResponseType(typeof(Response<bool>), StatusCodes.Status200OK)]
         public async Task<IActionResult> IsNameExistAsync(string name)
         {
-            return Ok(new Response<bool>()
-            {
-                Data = await _userService.IsNameExistAsync(name),
-                IsSuccess = true
-            });
+            return Ok(new Response<bool>(EErrorCode.NoError, await _userService.IsNameExistAsync(name)));
         }
 
+        /// <summary>
+        /// 토큰을 업데이트합니다.
+        /// </summary>
+        /// <returns>
+        /// access token, refresh token의 값이 맞는지 확인하고, 맞다면 token 값을 업데이트합니다.
+        /// refresh token이 만료됬다면 설정된 <seealso cref="AuthorizeTokenSetting.IsRefreshTokenExpiredHeader"/>를 응답 헤더에 추가합니다.
+        /// </returns>
         [HttpPost]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> RefreshAsync()
         {
             AuthorizeToken? cookieToken = GetCookieTokenOrNull();
             if (cookieToken == null)
             {
-                Response.Headers.Add("IS-REFRESH-TOKEN-EXPIRED", "true");
-                return NotFound(new Response()
-                {
-                    ErrorCode = EErrorCode.RefreshTokenExpired,
-                    IsSuccess = false
-                });
+                Response.Headers.Add(_authorizeTokenSetting.IsRefreshTokenExpiredHeader, "true");
+                return NotFound(new Response(EErrorCode.RefreshTokenExpired));
             }
 
             string? expiredAccessToken = await _cache.GetStringAsync(cookieToken.RefreshToken);
-            EErrorCode errorCode = EErrorCode.NoError;
 
             if (expiredAccessToken != cookieToken.AccessToken)
             {
-                errorCode |= EErrorCode.AccessTokenNotMatch;
+                return BadRequest(new Response(EErrorCode.AccessTokenNotMatch));
             }
             else
             {
                 User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(cookieToken.AccessToken);
                 if (user == null)
                 {
-                    errorCode |= EErrorCode.WrongAccessToken;
+                    return BadRequest(new Response(EErrorCode.WrongAccessToken));
                 }
                 else
                 {
-                    AuthorizeToken token = _jwtService.GenerateToken(user!, AccessTokenExpiration);
+                    AuthorizeToken token = _jwtService.GenerateToken(user!, DateTimeOffset.Now.Add(_authorizeTokenSetting.AccessTokenExpiration));
                     await SetCookieTokenAsync(token);
 
-                    return Ok(new Response()
-                    {
-                        IsSuccess = true
-                    });
+                    return Ok(new Response(EErrorCode.NoError));
                 }
             }
-
-            return BadRequest(new Response()
-            {
-                ErrorCode = errorCode,
-                IsSuccess = false
-            });
         }
 
+        /// <summary>
+        /// 로그인 성공 시 access token, refresh token을 추가합니다.
+        /// </summary>
+        /// <param name="loginInfo"></param>
+        /// <returns></returns>
         [HttpPost]
+        [ProducesResponseType(typeof(Response<IEnumerable<ClaimDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> LoginAsync([FromBody] LoginInfo loginInfo)
         {
             EErrorCode errorCode = EErrorCode.NoError;
@@ -126,157 +141,130 @@ namespace TodoList.Server.Controllers
 
             if (errorCode != EErrorCode.NoError)
             {
-                return NotFound(new Response()
-                {
-                    IsSuccess = false,
-                    ErrorCode = errorCode
-                });
+                return NotFound(new Response(errorCode));
             }
 
             User? user = await _userService.GetUserByEmailOrNullAsync(loginInfo.Email);
 
             if (!user!.IsEmailVerified)
             {
-                return BadRequest(new Response()
-                {
-                    ErrorCode = EErrorCode.EmailNotVerified,
-                    IsSuccess = false
-                });
+                return BadRequest(new Response(errorCode));
             }
 
-            AuthorizeToken token = _jwtService.GenerateToken(user!, AccessTokenExpiration);
+            AuthorizeToken token = _jwtService.GenerateToken(user!, DateTimeOffset.Now.Add(_authorizeTokenSetting.AccessTokenExpiration));
+            IEnumerable<Claim>? claims = _jwtService.GetClaimsByTokenOrNull(token.AccessToken);
+            if (claims is null)
+            {
+                return BadRequest(new Response(EErrorCode.WrongAccessToken));
+            }
+            IEnumerable<ClaimDto> claimDtos = _mapper.Map<IEnumerable<Claim>, IEnumerable<ClaimDto>>(claims);
             await SetCookieTokenAsync(token);
 
-            return Ok(new Response()
-            {
-                IsSuccess = true
-            });
+            return Ok(new Response<IEnumerable<ClaimDto>>(EErrorCode.NoError, claimDtos));
         }
 
-        [HttpGet]
-        [Authorize]
-        public IActionResult GetClaims()
-        {
-            AuthorizeToken cookieToken = GetCookieTokenOrNull()!;
-            IEnumerable<Claim>? claims = _jwtService.GetClaimsByTokenOrNull(cookieToken.AccessToken);
-            if (claims == null)
-            {
-                return BadRequest(new Response()
-                {
-                    IsSuccess = false,
-                    ErrorCode = EErrorCode.WrongAccessToken
-                });
-            }
-
-            IEnumerable<ClaimDto> claimDtos = _mapper.Map<IEnumerable<Claim>, IEnumerable<ClaimDto>>(claims);
-
-            return Ok(new Response<IEnumerable<ClaimDto>>()
-            {
-                IsSuccess = true,
-                Data = claimDtos
-            });
-        }
-
+        /// <summary>
+        /// 회원가입
+        /// </summary>
+        /// <param name="signupInfo"></param>
+        /// <returns></returns>
         [HttpPost]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status202Accepted)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> SignupAsync([FromBody] SignupInfo signupInfo)
         {
             EErrorCode errorCode = EErrorCode.NoError;
-            if (await _userService.IsEmailExistAsync(signupInfo.Email))
-            {
-                errorCode |= EErrorCode.EmailDuplicate;
-            }
-
-            if (await _userService.IsNameExistAsync(signupInfo.Name))
-            {
-                errorCode |= EErrorCode.NameDuplicate;
-            }
+            errorCode |= await _userService.IsEmailExistAsync(signupInfo.Email) ? EErrorCode.EmailDuplicate : EErrorCode.NoError;
+            errorCode |= await _userService.IsNameExistAsync(signupInfo.Name) ? EErrorCode.UserNameDuplicate : EErrorCode.NoError;
 
             if (errorCode != EErrorCode.NoError)
             {
-                return BadRequest(new Response()
-                {
-                    IsSuccess = false,
-                    ErrorCode = errorCode
-                });
+                return BadRequest(new Response(errorCode));
             }
 
-            Guid? id = await _userService.SignupAsync(signupInfo);
-            if (id == null)
-            {
-                return BadRequest();
-            }
-
-            await SendVerifyMailAsync(signupInfo.Email);
-            Response response = new()
-            {
-                IsSuccess = true,
-                ErrorCode = EErrorCode.NoError
-            };
-
-            return Accepted(response);
+            await _userService.SignupAsync(signupInfo);
+            await SendVerifyMailAsync(signupInfo.Email, signupInfo.EmailVerifyUrl);
+            return Accepted(new Response(EErrorCode.NoError));
         }
 
+        /// <summary>
+        /// access token, refresh token을 파기합니다
+        /// </summary>
+        /// <returns></returns>
         [HttpPost]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> ExpireRefreshTokenAsync()
         {
             AuthorizeToken? cookieToken = GetCookieTokenOrNull();
             if (cookieToken == null)
             {
-                return NotFound(new Response()
-                {
-                    IsSuccess = false,
-                    ErrorCode = EErrorCode.RefreshTokenExpired
-                });
+                return NotFound(new Response(EErrorCode.RefreshTokenExpired));
             }
 
             string token = await _cache.GetStringAsync(cookieToken.RefreshToken);
             if (token == cookieToken.AccessToken)
             {
                 await _cache.RemoveAsync(cookieToken.RefreshToken);
-                Response.Cookies.Delete(ACCESS_TOKEN);
-                Response.Cookies.Delete(REFRESH_TOKEN);
-                Response.Cookies.Delete("accessTokenExpiration");
+                Response.Cookies.Delete(_authorizeTokenSetting.AccessTokenKey);
+                Response.Cookies.Delete(_authorizeTokenSetting.RefreshTokenKey);
 
-                return Ok(new Response()
-                {
-                    IsSuccess = true,
-                });
+                return Ok(new Response(EErrorCode.NoError));
             }
 
-            return BadRequest(new Response()
-            {
-                ErrorCode = EErrorCode.AccessTokenNotMatch
-            });
+            return BadRequest(new Response(EErrorCode.AccessTokenNotMatch));
         }
 
-        [HttpPost]
-        public async Task<IActionResult> VerifyCodeAsync([FromForm] string email, [FromForm] string code)
+        /// <summary>
+        /// 이메일 인증 결과를 반환합니다
+        /// </summary>
+        /// <param name="email"></param>
+        /// <param name="code"></param>
+        /// <returns></returns>
+        [HttpGet]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> VerifyEmailAsync(string email, string code)
         {
+            code = code.Replace(' ', '+');
             bool isVerified = _verifyCodeService.IsVerifyCodeMatch(email, code);
             if (isVerified)
             {
                 await _userService.VerifyEmailAsync(email);
-                ContentResult contentResult = new()
-                {
-                    StatusCode = 200,
-                    Content = "<script>alert('인증 성공'); close();</script>"
-                };
-
-                return contentResult;
+                await _verifyCodeService.RemoveVerifyCodeAsync(email);
+                return Ok(new Response(EErrorCode.NoError));
             }
             else
             {
-                return new ContentResult()
-                {
-                    StatusCode = 404,
-                    Content = "<script>alert('인증 실패'); close();</script>"
-                };
+                return BadRequest(new Response(EErrorCode.EmailVerifyFail));
             }
+        }
+
+        private async Task SendVerifyMailAsync(string email, string url)
+        {
+            string code = _verifyCodeService.GetVerifyCode(VERIFY_CODE_LENGTH);
+            await _verifyCodeService.SetVerifyCodeAsync(email, code);
+            StringBuilder sb = new(System.IO.File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "EmailTemplate.html")));
+            sb.Replace("{ACTION}", url).Replace("{METHOD}", "get").Replace("{EMAIL}", email).Replace("{CODE}", code);
+
+            string body = sb.ToString();
+
+            MailRequest mailRequest = new()
+            {
+                Body = body,
+                BodyEncoding = Encoding.UTF8,
+                IsBodyHtml = true,
+                Subject = "TodoList 인증 메일",
+                To = email
+            };
+
+            await _emailService.SendEmailAsync(mailRequest);
         }
 
         private AuthorizeToken? GetCookieTokenOrNull()
         {
-            if (Request.Cookies.TryGetValue(ACCESS_TOKEN, out string? accessToken) && Request.Cookies.TryGetValue(REFRESH_TOKEN, out string? refreshToken))
+            if (Request.Cookies.TryGetValue(_authorizeTokenSetting.AccessTokenKey, out string? accessToken) && Request.Cookies.TryGetValue(_authorizeTokenSetting.RefreshTokenKey, out string? refreshToken))
             {
                 return new AuthorizeToken(accessToken, refreshToken);
             }
@@ -284,50 +272,22 @@ namespace TodoList.Server.Controllers
             return null;
         }
 
-        private async Task SendVerifyMailAsync(string email)
-        {
-            string code = _verifyCodeService.GetVerifyCode(VERIFY_CODE_LENGTH);
-            await _verifyCodeService.SetVerifyCodeAsync(email, code);
-
-            string verifyUrl = Url.ActionLink("VerifyCode", "Identity")!;
-            string body =
-                $@"<p>
-                     <form action=""{verifyUrl}"" method=""post"">
-                       <input type=""hidden"" value=""{email}"" name=""email""/>
-                       <button value=""{code}"" name=""code"" type=""submit"">인증하려면 클릭하세요</button>
-                     </form>
-                   </p>";
-
-            MailRequest mailRequest = new()
-            {
-                Body = body,
-                BodyEncoding = Encoding.UTF8,
-                IsBodyHtml = true,
-                Subject = "인증",
-                To = email
-            };
-
-            await _emailService.SendEmailAsync(mailRequest);
-        }
-
         private async Task SetCookieTokenAsync(AuthorizeToken token)
         {
-            TimeSpan expirationDays = TimeSpan.FromDays(REFRESH_TOKEN_EXPIRATION_DAYS);
-
             await _cache.SetStringAsync(token.RefreshToken, token.AccessToken, new DistributedCacheEntryOptions()
             {
-                SlidingExpiration = expirationDays
+                SlidingExpiration = _authorizeTokenSetting.RefreshTokenExpiration
             });
 
             CookieOptions cookieOptions = new()
             {
                 HttpOnly = true,
                 Secure = true,
-                MaxAge = expirationDays,
+                MaxAge = _authorizeTokenSetting.RefreshTokenExpiration,
             };
 
-            Response.Cookies.Append(ACCESS_TOKEN, token.AccessToken, cookieOptions);
-            Response.Cookies.Append(REFRESH_TOKEN, token.RefreshToken, cookieOptions);
+            Response.Cookies.Append(_authorizeTokenSetting.AccessTokenKey, token.AccessToken, cookieOptions);
+            Response.Cookies.Append(_authorizeTokenSetting.RefreshTokenKey, token.RefreshToken, cookieOptions);
         }
     }
 }

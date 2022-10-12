@@ -10,5 +10,6 @@ namespace TodoList.Client.Svcs.Interfaces
         Task<HttpResponseMessage> RefreshAsync();
         Task<bool> IsEmailExistAsync(string email);
         Task<bool> IsNameExistAsync(string name);
+        Task<bool> VerifyEmailAsync(string email, string code);
     }
 }

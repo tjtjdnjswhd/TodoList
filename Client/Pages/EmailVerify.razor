@@ -1,0 +1,33 @@
+﻿@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.Extensions.Primitives
+
+@page "/emailverify"
+
+@inject NavigationManager navigation
+@inject IAuthenticationService authenticationService
+@inject IJSRuntime jsRuntime
+
+@code {
+    protected override async void OnInitialized()
+    {
+        Uri uri = new(navigation.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (!query.TryGetValue("email", out StringValues email) || !query.TryGetValue("code", out StringValues code))
+        {
+            await jsRuntime.InvokeVoidAsync("Alert", "잘못된 값입니다.");
+        }
+        else
+        {
+            if (await authenticationService.VerifyEmailAsync(email, code))
+            {
+                await jsRuntime.InvokeVoidAsync("Alert", $"{email} 인증 완료됬습니다.");
+            }
+            else
+            {
+                await jsRuntime.InvokeVoidAsync("Alert", "인증 실패했습니다.");
+            }
+        }
+        navigation.NavigateTo("/");
+    }
+}

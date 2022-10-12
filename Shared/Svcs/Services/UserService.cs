@@ -133,20 +133,5 @@ namespace TodoList.Shared.Svcs.Services
 
             return true;
         }
-
-        public async Task<bool> ChangeEmailAsync(Guid id, string newEmail)
-        {
-            User? user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
-            if (user == null)
-            {
-                return false;
-            }
-
-            user.Email = newEmail;
-            user.IsEmailVerified = false;
-            await _dbContext.SaveChangesAsync();
-
-            return true;
-        }
     }
 }
