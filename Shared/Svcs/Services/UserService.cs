@@ -38,17 +38,23 @@ namespace TodoList.Shared.Svcs.Services
 
         public async Task<User?> GetUserByIdOrNullAsync(Guid id)
         {
-            return await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+            User? user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            _logger.LogDebug("Return user. user id: {userId}", user?.Id ?? null);
+            return user;
         }
 
         public async Task<User?> GetUserByEmailOrNullAsync(string email)
         {
-            return await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
+            User? user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email);
+            _logger.LogDebug("Return user. user id: {userId}", user?.Id ?? null);
+            return user;
         }
 
         public async Task<User?> GetUserByNameOrNullAsync(string name)
         {
-            return await _dbContext.Users.FirstOrDefaultAsync(u => u.Name == name);
+            User? user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Name == name);
+            _logger.LogDebug("Return user. user id: {userId}", user?.Id ?? null);
+            return user;
         }
 
         [UnsupportedOSPlatform("browser")]
@@ -57,11 +63,14 @@ namespace TodoList.Shared.Svcs.Services
             User? user = await GetUserByEmailOrNullAsync(loginInfo.Email);
             if (user == null)
             {
+                _logger.LogDebug("User not found. user email: {userEmail}", loginInfo.Email);
                 return false;
             }
 
-            string hashBase64 = Convert.ToBase64String(PasswordHasher.HashPassword(loginInfo.Password, Convert.FromBase64String(user.SaltBase64), _hashSettings));
-            return user.PasswordHashBase64 == hashBase64;
+            string hashBase64 = Convert.ToBase64String(PasswordHashHelper.HashPassword(loginInfo.Password, Convert.FromBase64String(user.SaltBase64), _hashSettings));
+            bool result = user.PasswordHashBase64 == hashBase64;
+            _logger.LogTrace("Password is {message}. user id: {userId}", result ? "match" : "not match", user.Id);
+            return result;
         }
 
         [UnsupportedOSPlatform("browser")]
@@ -69,11 +78,12 @@ namespace TodoList.Shared.Svcs.Services
         {
             if (await IsEmailExistAsync(signupInfo.Email) || await IsNameExistAsync(signupInfo.Name))
             {
+                _logger.LogDebug("Sign up fail. info: {@info}", signupInfo);
                 return null;
             }
 
-            byte[] salt = PasswordHasher.GetSalt(_hashSettings.SaltLength);
-            byte[] hash = PasswordHasher.HashPassword(signupInfo.Password, salt, _hashSettings);
+            byte[] salt = PasswordHashHelper.GetSalt(_hashSettings.SaltLength);
+            byte[] hash = PasswordHashHelper.HashPassword(signupInfo.Password, salt, _hashSettings);
 
             string saltBase64 = Convert.ToBase64String(salt);
             string hashBase64 = Convert.ToBase64String(hash);
@@ -82,7 +92,8 @@ namespace TodoList.Shared.Svcs.Services
             _dbContext.Users.Add(user);
             _dbContext.SaveChanges();
 
-            return _dbContext.Users.Single(u => u.Email == signupInfo.Email).Id;
+            _logger.LogInformation("User signup. user id: {userId}", user.Id);
+            return user.Id;
         }
 
         public async Task VerifyEmailAsync(string email)
@@ -90,9 +101,11 @@ namespace TodoList.Shared.Svcs.Services
             User? user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email);
             if (user != null)
             {
+                _logger.LogInformation("User email verified. user id: {userId}", user.Id);
                 user.IsEmailVerified = true;
                 await _dbContext.SaveChangesAsync();
             }
+            _logger.LogDebug("User not found. email: {email}", email);
         }
 
         [UnsupportedOSPlatform("browser")]
@@ -101,22 +114,29 @@ namespace TodoList.Shared.Svcs.Services
             User? user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
             {
+                _logger.LogDebug("User not found. user id: {userId}", id);
                 return false;
             }
 
             byte[] salt = Convert.FromBase64String(user.SaltBase64);
-            byte[] oldHash = PasswordHasher.HashPassword(oldPassword, salt, _hashSettings);
+            byte[] oldHash = PasswordHashHelper.HashPassword(oldPassword, salt, _hashSettings);
 
             if (!Convert.FromBase64String(user.PasswordHashBase64).SequenceEqual(oldHash))
             {
+                _logger.LogInformation("Password is not match. user id: {userId}", id);
                 return false;
             }
 
-            byte[] newHash = PasswordHasher.HashPassword(newPassword, salt, _hashSettings);
-            string newHashBase64 = Convert.ToBase64String(newHash);
-            user.PasswordHashBase64 = newHashBase64;
-            await _dbContext.SaveChangesAsync();
+            byte[] newSalt = PasswordHashHelper.GetSalt(_hashSettings.SaltLength);
+            byte[] newHash = PasswordHashHelper.HashPassword(newPassword, newSalt, _hashSettings);
 
+            string newHashBase64 = Convert.ToBase64String(newHash);
+            string newSaltBase64 = Convert.ToBase64String(newSalt);
+
+            user.PasswordHashBase64 = newHashBase64;
+            user.SaltBase64 = newSaltBase64;
+            await _dbContext.SaveChangesAsync();
+            _logger.LogInformation("Password and salt changed. user id: {userId}", id);
             return true;
         }
 
@@ -125,9 +145,11 @@ namespace TodoList.Shared.Svcs.Services
             User? user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
             {
+                _logger.LogDebug("User not found. user id: {userId}", id);
                 return false;
             }
 
+            _logger.LogInformation("User name changed. old name: {oldName}, new name: {newName}", user.Name, newName);
             user.Name = newName;
             await _dbContext.SaveChangesAsync();
 

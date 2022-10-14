@@ -16,7 +16,7 @@ namespace TodoList.Client.Svcs.Services
         public event EventHandler? ItemDeletedEvent;
         public event EventHandler? ItemUpdatedEvent;
 
-        private Dictionary<DateTime, List<TodoItemDto>> _itemsDict = new();
+        private readonly Dictionary<DateTime, List<TodoItemDto>> _itemsDict = new();
         private readonly IHttpClientFactory _httpClientFactory;
 
         public TodoItemService(IHttpClientFactory httpClientFactory)

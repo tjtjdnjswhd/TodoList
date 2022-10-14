@@ -50,6 +50,7 @@ namespace TodoList.Server.Controllers
             {
                 IEnumerable<TodoItem> items = _todoItemService.GetByUserId(id);
                 IEnumerable<TodoItemDto> itemDtos = _mapper.Map<IEnumerable<TodoItem>, IEnumerable<TodoItemDto>>(items);
+                _logger.LogTrace("Getting items success. userId: {userId}, ItemIds: {@itemIds}", id, itemDtos.Select(i => i.Id));
                 return Ok(new Response<IEnumerable<TodoItemDto>>(EErrorCode.NoError, itemDtos));
             }
             else
@@ -57,15 +58,18 @@ namespace TodoList.Server.Controllers
                 TodoItem? item = await _todoItemService.GetByIdOrNullAsync(itemId.Value);
                 if (item == null)
                 {
+                    LogItemNotFound(itemId.Value);
                     return NotFound(ITEM_NOT_FOUND_RESPONSE);
                 }
 
                 if (item.UserId != id)
                 {
+                    LogItemForbidden(id, itemId.Value);
                     return Forbid(JwtBearerDefaults.AuthenticationScheme);
                 }
 
                 TodoItemDto itemDto = _mapper.Map<TodoItem, TodoItemDto>(item);
+                _logger.LogTrace("Getting item success. userId: {userId}, itemId: {itemId}", id, itemId.Value);
                 return Ok(new Response<TodoItemDto>(EErrorCode.NoError, itemDto));
             }
         }
@@ -78,11 +82,11 @@ namespace TodoList.Server.Controllers
         [HttpPost]
         [Authorize]
         [ProducesResponseType(StatusCodes.Status201Created)]
-        public IActionResult Post([FromForm] string name)
+        public async Task<IActionResult> PostAsync([FromForm] string name)
         {
             Guid id = GetUserId(User);
-
-            int itemId = _todoItemService.AddAsync(id, name).Result;
+            int itemId = await _todoItemService.AddAsync(id, name);
+            _logger.LogTrace("Item added. userId: {id}, itemId: {itemId}", id, itemId);
             return CreatedAtAction("Get", "TodoItem", routeValues: new { itemId }, value: null);
         }
 
@@ -101,7 +105,8 @@ namespace TodoList.Server.Controllers
         {
             if (info.NewName is null)
             {
-                ModelState.AddModelError(nameof(TodoItemUpdateInfo.NewName), new ArgumentNullException(nameof(TodoItemUpdateInfo.NewName)), MetadataProvider.GetMetadataForType(typeof(TodoItemUpdateInfo)));
+                ModelState.AddModelError(nameof(info.NewName), new ArgumentNullException(nameof(info.NewName)), MetadataProvider.GetMetadataForType(typeof(TodoItemUpdateInfo)));
+                _logger.LogInformation("Item patch fail. NewName is null");
                 return UnprocessableEntity(ModelState);
             }
 
@@ -111,15 +116,18 @@ namespace TodoList.Server.Controllers
 
             if (item == null)
             {
+                LogItemNotFound(info.ItemId);
                 return NotFound(ITEM_NOT_FOUND_RESPONSE);
             }
 
             if (item.UserId != id)
             {
+                LogItemForbidden(id, info.ItemId);
                 return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
             await _todoItemService.EditNameAsync(info.ItemId, info.NewName);
+            _logger.LogTrace("Item name changed. itemId: {itemId}, oldName: {oldName}, newName: {newName}", info.ItemId, item.Name, info.NewName);
             return Ok();
         }
 
@@ -141,15 +149,18 @@ namespace TodoList.Server.Controllers
 
             if (item == null)
             {
+                LogItemNotFound(info.ItemId);
                 return NotFound(ITEM_NOT_FOUND_RESPONSE);
             }
 
             if (item.UserId != id)
             {
+                LogItemForbidden(id, info.ItemId);
                 return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
             await _todoItemService.DeleteAsync(info.ItemId);
+            _logger.LogTrace("Item deleted. userId: {userId}, itemId: {itemId}", id, info.ItemId);
             return Ok();
         }
 
@@ -170,11 +181,13 @@ namespace TodoList.Server.Controllers
 
             if (item == null)
             {
+                LogItemNotFound(info.ItemId);
                 return NotFound(ITEM_NOT_FOUND_RESPONSE);
             }
 
             if (item.UserId != id)
             {
+                LogItemForbidden(id, info.ItemId);
                 return Forbid(JwtBearerDefaults.AuthenticationScheme);
             }
 
@@ -186,7 +199,19 @@ namespace TodoList.Server.Controllers
             {
                 await _todoItemService.CompleteAsync(info.ItemId);
             }
+
+            _logger.LogTrace("Item isComplete toggled. userId: {userId}, itemId: {itemId}", id, info.ItemId);
             return Ok();
+        }
+
+        private void LogItemNotFound(int itemId)
+        {
+            _logger.LogTrace("item not exist. itemId: {itemId}", itemId);
+        }
+
+        private void LogItemForbidden(Guid userId, int itemId)
+        {
+            _logger.LogTrace("Item forbidden. userId: {userId}, itemId: {itemId}", userId, itemId);
         }
 
         private static Guid GetUserId(ClaimsPrincipal user) => Guid.Parse(user.FindFirstValue(JwtRegisteredClaimNames.Jti));

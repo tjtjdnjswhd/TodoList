@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using System.Net;
 using System.Net.Mail;
@@ -13,27 +14,39 @@ namespace TodoList.Shared.Svcs.Services
     [UnsupportedOSPlatform("browser")]
     public sealed class EmailService : IEmailService
     {
-        private readonly MailSettings _setting;
+        private readonly MailSettings _settings;
+        private readonly ILogger<EmailService> _logger;
 
-        public EmailService(IOptions<MailSettings> setting)
+        public EmailService(IOptions<MailSettings> settings, ILogger<EmailService> logger)
         {
-            _setting = setting.Value;
+            _settings = settings.Value;
+            _logger = logger;
         }
 
         public async Task SendEmailAsync(MailRequest request)
         {
-            MailMessage mailMessage = new(_setting.From, request.To, request.Subject, request.Body)
+            MailMessage mailMessage = new(_settings.From, request.To, request.Subject, request.Body)
             {
                 IsBodyHtml = request.IsBodyHtml,
                 BodyEncoding = request.BodyEncoding
             };
 
-            using SmtpClient smtpClient = new(_setting.Host, _setting.Port);
+            using SmtpClient smtpClient = new(_settings.Host, _settings.Port);
             smtpClient.UseDefaultCredentials = false;
-            smtpClient.Credentials = new NetworkCredential(_setting.From, _setting.Password);
-            smtpClient.EnableSsl = _setting.EnableSsl;
+            smtpClient.Credentials = new NetworkCredential(_settings.From, _settings.Password);
+            smtpClient.EnableSsl = _settings.EnableSsl;
 
-            await smtpClient.SendMailAsync(mailMessage);
+            _logger.LogDebug("Start send email. settings: {@settings}, request: {@request}", _settings, request);
+            try
+            {
+                await smtpClient.SendMailAsync(mailMessage);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Mail send fail. settings: {@setting}, request: {@request}", _settings, request);
+                throw;
+            }
+            _logger.LogInformation("Mail send success. settings: {@setting}, request: {@request}", _settings, request);
         }
     }
 }

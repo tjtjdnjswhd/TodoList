@@ -5,7 +5,7 @@ using TodoList.Shared.Settings;
 
 namespace TodoList.Shared.Utils
 {
-    public static class PasswordHasher
+    public static class PasswordHashHelper
     {
         public static byte[] GetSalt(int length)
         {

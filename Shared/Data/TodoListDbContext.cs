@@ -32,7 +32,10 @@ namespace TodoList.Shared.Data
                     Name = "Admin",
                     Priority = 0
                 });
-            modelBuilder.Entity<User>();
+            modelBuilder.Entity<User>(builder =>
+            {
+                builder.Property(u => u.SignupDate).HasDefaultValueSql("GETDATE()");
+            });
         }
     }
 }

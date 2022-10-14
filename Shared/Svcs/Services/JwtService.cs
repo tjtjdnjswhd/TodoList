@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 using System.IdentityModel.Tokens.Jwt;
@@ -8,6 +9,7 @@ using System.Text;
 
 using TodoList.Shared.Data.Models;
 using TodoList.Shared.Models;
+using TodoList.Shared.Settings;
 using TodoList.Shared.Svcs.Interfaces;
 
 using JwtRegisteredClaimNames = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames;
@@ -16,19 +18,21 @@ namespace TodoList.Shared.Svcs.Services
 {
     public sealed class JwtService : IJwtService
     {
-        private readonly IConfiguration _configuration;
         private readonly IUserService _userService;
+        private readonly JwtSettings _jwtSettings;
+        private readonly ILogger<JwtService> _logger;
 
-        public JwtService(IConfiguration configuration, IUserService userService)
+        public JwtService(IUserService userService, IOptions<JwtSettings> jwtSettings, ILogger<JwtService> logger)
         {
-            _configuration = configuration;
             _userService = userService;
+            _jwtSettings = jwtSettings.Value;
+            _logger = logger;
         }
 
         public AuthorizeToken GenerateToken(User user, DateTimeOffset absoluteExpiration)
         {
-            SymmetricSecurityKey securityKey = new(Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
-            SigningCredentials credentials = new(securityKey, SecurityAlgorithms.HmacSha256);
+            SymmetricSecurityKey securityKey = new(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+            SigningCredentials credentials = new(securityKey, _jwtSettings.SecurityAlgorithmName);
             Claim[] claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Name),
@@ -37,10 +41,15 @@ namespace TodoList.Shared.Svcs.Services
                 new Claim(JwtRegisteredClaimNames.Email, user.Email)
             };
 
-            JwtSecurityToken token = new(issuer: _configuration["Jwt:Issuer"], audience: _configuration["Jwt:Audience"], claims: claims, expires: absoluteExpiration.UtcDateTime, signingCredentials: credentials);
-            string accessToken = new JwtSecurityTokenHandler().WriteToken(token);
+            JwtSecurityToken securifyToken = new(issuer: _jwtSettings.Issuer, audience: _jwtSettings.Audience, claims: claims, expires: absoluteExpiration.UtcDateTime, signingCredentials: credentials);
+            _logger.LogDebug("Security token created. settings: {@settings}, claims = {@claims}, absoluteExpiration: {absoluteExpiration}", _jwtSettings, claims, absoluteExpiration);
+
+            string accessToken = new JwtSecurityTokenHandler().WriteToken(securifyToken);
             string refreshToken = GetRefreshToken();
-            return new AuthorizeToken(accessToken, refreshToken);
+            AuthorizeToken authorizeToken = new(accessToken, refreshToken);
+
+            _logger.LogDebug("Token generated. token: {@token}", authorizeToken);
+            return authorizeToken;
         }
 
         public IEnumerable<Claim>? GetClaimsByTokenOrNull(string accessToken)
@@ -49,8 +58,10 @@ namespace TodoList.Shared.Svcs.Services
             if (tokenHandler.CanReadToken(accessToken))
             {
                 IEnumerable<Claim> claims = tokenHandler.ReadJwtToken(accessToken).Claims;
+                _logger.LogDebug("Return claim. access token: {accessToken}, claims: {@claims}", accessToken, claims);
                 return claims;
             }
+            _logger.LogDebug("Read access token fail. access token: {accessToken}", accessToken);
             return null;
         }
 
@@ -62,40 +73,17 @@ namespace TodoList.Shared.Svcs.Services
             return Convert.ToBase64String(randomNumber);
         }
 
-        public string GetRefreshTokenKey(Guid userId)
-        {
-            return $"user{userId}_refreshToken";
-        }
-
         public async Task<User?> GetUserFromAccessTokenOrNullAsync(string accessToken)
         {
-            byte[] key = Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]);
-            TokenValidationParameters parameters = new()
+            JwtSecurityTokenHandler tokenHandler = new();
+            if (tokenHandler.CanReadToken(accessToken) && Guid.TryParse(tokenHandler.ReadJwtToken(accessToken).Id, out Guid id))
             {
-                ValidateAudience = false,
-                ValidateIssuer = false,
-                ValidateLifetime = false,
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ClockSkew = TimeSpan.Zero
-            };
-
-            JwtSecurityTokenHandler handler = new();
-            ClaimsPrincipal principal = handler.ValidateToken(accessToken, parameters, out SecurityToken securityToken);
-
-            if (securityToken is not JwtSecurityToken jwtSecurityToken || !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-            {
-                return null;
+                User? user = await _userService.GetUserByIdOrNullAsync(id);
+                _logger.LogDebug("Return user. userId: {userId}, access token: {accessToken}", id, accessToken);
+                return user;
             }
-
-            string userId = principal.Claims.Single(c => c.Type == JwtRegisteredClaimNames.Jti).Value;
-            if (!Guid.TryParse(userId, out Guid id))
-            {
-                return null;
-            }
-
-            User? user = await _userService.GetUserByIdOrNullAsync(id);
-            return user;
+            _logger.LogDebug("Read access token fail. access token: {accessToken}", accessToken);
+            return null;
         }
     }
 }

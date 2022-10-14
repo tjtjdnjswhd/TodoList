@@ -30,6 +30,7 @@ namespace TodoList.Migrations.Migrations
                     IsEmailVerified = table.Column<bool>(type: "bit", nullable: false),
                     PasswordHashBase64 = table.Column<string>(type: "varchar(max)", unicode: false, nullable: false),
                     SaltBase64 = table.Column<string>(type: "varchar(20)", unicode: false, maxLength: 20, nullable: false),
+                    SignupDate = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false, defaultValueSql: "GETDATE()"),
                     RoleName = table.Column<string>(type: "varchar(20)", nullable: false)
                 },
                 constraints: table =>
@@ -65,6 +66,16 @@ namespace TodoList.Migrations.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.InsertData(
+                table: "Role",
+                columns: new[] { "Name", "Priority" },
+                values: new object[] { "Admin", 0 });
+
+            migrationBuilder.InsertData(
+                table: "Role",
+                columns: new[] { "Name", "Priority" },
+                values: new object[] { "User", 1 });
+
             migrationBuilder.CreateIndex(
                 name: "IX_TodoItem_UserId",
                 table: "TodoItem",
@@ -80,6 +91,8 @@ namespace TodoList.Migrations.Migrations
                 name: "IX_User_RoleName",
                 table: "User",
                 column: "RoleName");
+
+
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

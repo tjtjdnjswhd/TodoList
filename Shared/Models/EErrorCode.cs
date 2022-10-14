@@ -7,7 +7,7 @@ namespace TodoList.Shared.Models
     public enum EErrorCode
     {
         NoError = 0,
-        AccessTokenNotMatch = 1,
+        CachedAccessTokenNotMatch = 1,
         WrongAccessToken = 2,
         RefreshTokenExpired = 4,
         EmailNotExist = 8,

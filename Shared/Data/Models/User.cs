@@ -43,6 +43,8 @@ namespace TodoList.Shared.Data.Models
         [MaxLength(20)]
         [Unicode(false)]
         public string SaltBase64 { get; set; }
+        [Required]
+        public DateTimeOffset SignupDate { get; set; }
 
         [Required]
         public string RoleName { get; set; }

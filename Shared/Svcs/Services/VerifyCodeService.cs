@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using System.Security.Cryptography;
@@ -13,11 +14,13 @@ namespace TodoList.Shared.Svcs.Services
     {
         private readonly IDistributedCache _cache;
         private readonly VerifyCodeSettings _settings;
+        private readonly ILogger<VerifyCodeService> _logger;
 
-        public VerifyCodeService(IDistributedCache cache, IOptions<VerifyCodeSettings> settings)
+        public VerifyCodeService(IDistributedCache cache, IOptions<VerifyCodeSettings> settings, ILogger<VerifyCodeService> logger)
         {
             _cache = cache;
             _settings = settings.Value;
+            _logger = logger;
         }
 
         public string GetVerifyCode(int length)
@@ -27,6 +30,7 @@ namespace TodoList.Shared.Svcs.Services
 
         public Task SetVerifyCodeAsync(string key, string code)
         {
+            _logger.LogDebug("Verify code set to cache. key: {key}, code: {code}", key, code);
             return _cache.SetStringAsync(key, code, new DistributedCacheEntryOptions()
             {
                 SlidingExpiration = _settings.SlidingExpiration,
@@ -35,6 +39,7 @@ namespace TodoList.Shared.Svcs.Services
 
         public Task RemoveVerifyCodeAsync(string key)
         {
+            _logger.LogDebug("Verify code deleted. key: {key}", key);
             return _cache.RemoveAsync(key);
         }
 

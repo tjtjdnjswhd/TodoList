@@ -17,7 +17,7 @@ namespace TodoList.Migrations.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "6.0.9")
+                .HasAnnotation("ProductVersion", "6.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
@@ -35,6 +35,18 @@ namespace TodoList.Migrations.Migrations
                     b.HasKey("Name");
 
                     b.ToTable("Role");
+
+                    b.HasData(
+                        new
+                        {
+                            Name = "User",
+                            Priority = 1
+                        },
+                        new
+                        {
+                            Name = "Admin",
+                            Priority = 0
+                        });
                 });
 
             modelBuilder.Entity("TodoList.Shared.Data.Models.TodoItem", b =>
@@ -103,6 +115,11 @@ namespace TodoList.Migrations.Migrations
                         .HasMaxLength(20)
                         .IsUnicode(false)
                         .HasColumnType("varchar(20)");
+
+                    b.Property<DateTimeOffset>("SignupDate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetimeoffset")
+                        .HasDefaultValueSql("GETDATE()");
 
                     b.HasKey("Id");
 
