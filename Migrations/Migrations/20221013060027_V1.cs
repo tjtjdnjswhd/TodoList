@@ -92,7 +92,9 @@ namespace TodoList.Migrations.Migrations
                 table: "User",
                 column: "RoleName");
 
-
+            //IDistributedCache for sql server
+            string cacheSql = MigrationUtility.ReadSql(typeof(V1), "Create dbo.RefreshTokenCache.sql");
+            migrationBuilder.Sql(cacheSql);
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)

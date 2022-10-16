@@ -43,10 +43,10 @@ namespace TodoList.Shared.Svcs.Services
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Mail send fail. settings: {@setting}, request: {@request}", _settings, request);
+                _logger.LogError(e, "Mail send fail. settings: {@settings}, request: {@request}", _settings, request);
                 throw;
             }
-            _logger.LogInformation("Mail send success. settings: {@setting}, request: {@request}", _settings, request);
+            _logger.LogInformation("Mail send success. settings: {@settings}, request: {@request}", _settings, request);
         }
     }
 }

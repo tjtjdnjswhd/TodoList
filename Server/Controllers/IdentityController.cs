@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.JsonWebTokens;
 
 using System.Security.Claims;
 using System.Text;
@@ -110,7 +112,7 @@ namespace TodoList.Server.Controllers
             }
             else
             {
-                User? user = await _jwtService.GetUserFromAccessTokenOrNullAsync(cookieToken.AccessToken);
+                User? user = await _jwtService.GetUserByTokenOrNullAsync(cookieToken.AccessToken);
                 if (user == null)
                 {
                     _logger.LogInformation("Refresh fail. wrong access token. access token: {accessToken}", cookieToken.AccessToken);
@@ -139,11 +141,11 @@ namespace TodoList.Server.Controllers
         {
             EErrorCode errorCode = EErrorCode.NoError;
             errorCode |= await _userService.IsEmailExistAsync(loginInfo.Email) ? EErrorCode.NoError : EErrorCode.EmailNotExist;
-            errorCode |= await _userService.MatchPassword(loginInfo) ? EErrorCode.NoError : EErrorCode.WrongPassword;
+            errorCode |= await _userService.CanLoginAsync(loginInfo) ? EErrorCode.NoError : EErrorCode.WrongPassword;
 
             if (errorCode != EErrorCode.NoError)
             {
-                _logger.LogInformation("Login fail. info: {@info}, errorCode: {errorCode}", loginInfo, errorCode);
+                _logger.LogInformation("Login fail. info: {@info}, error code: {errorCode}", loginInfo, errorCode);
                 return NotFound(new Response(errorCode));
             }
 
@@ -151,7 +153,7 @@ namespace TodoList.Server.Controllers
 
             if (!user!.IsEmailVerified)
             {
-                _logger.LogInformation("Login fail. info: {@info}, errorCode: {errorCode}", loginInfo, EErrorCode.EmailNotVerified);
+                _logger.LogInformation("Login fail. info: {@info}, error code: {errorCode}", loginInfo, EErrorCode.EmailNotVerified);
                 return BadRequest(new Response(EErrorCode.EmailNotVerified));
             }
 
@@ -180,7 +182,7 @@ namespace TodoList.Server.Controllers
 
             if (errorCode != EErrorCode.NoError)
             {
-                _logger.LogInformation("Sign up fail. info: {@info}, errorCode: {errorCode}", signupInfo, errorCode);
+                _logger.LogInformation("Sign up fail. info: {@info}, error code: {errorCode}", signupInfo, errorCode);
                 return BadRequest(new Response(errorCode));
             }
 
@@ -188,6 +190,79 @@ namespace TodoList.Server.Controllers
             await SendVerifyMailAsync(signupInfo.Email, signupInfo.EmailVerifyUrl);
             _logger.LogInformation("Sign up success. info: {@info}", signupInfo);
             return Accepted(new Response(EErrorCode.NoError));
+        }
+
+        /// <summary>
+        /// 비밀번호를 변경합니다.
+        /// </summary>
+        /// <param name="password"></param>
+        /// <param name="newPassword"></param>
+        /// <param name="newPasswordCheck"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+        public async Task<IActionResult> ChangePassword(string password, string newPassword, string newPasswordCheck)
+        {
+            if (newPassword != newPasswordCheck)
+            {
+                ModelState.AddModelError("", "password not match");
+                return UnprocessableEntity(ModelState);
+            }
+
+            string email = User.FindFirstValue(JwtRegisteredClaimNames.Email);
+            if (!await _userService.CanLoginAsync(new LoginInfo()
+            {
+                Email = email,
+                Password = password
+            }))
+            {
+                return BadRequest(new Response(EErrorCode.WrongPassword));
+            }
+
+            Guid id = Guid.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Jti));
+
+            bool result = await _userService.ChangePasswordAsync(id, password, newPassword);
+            if (result)
+            {
+                return Ok();
+            }
+            else
+            {
+                return BadRequest();
+            }
+        }
+
+        /// <summary>
+        /// 이름을 변경합니다.
+        /// </summary>
+        /// <param name="newName"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(Response), StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ChangeName(string newName)
+        {
+            Guid id = Guid.Parse(User.FindFirstValue(JwtRegisteredClaimNames.Jti));
+            if (await _userService.IsNameExistAsync(newName))
+            {
+                return BadRequest(new Response(EErrorCode.UserNameDuplicate));
+            }
+            bool result = await _userService.ChangeNameAsync(id, newName);
+
+            if (result)
+            {
+                return Ok();
+            }
+            else
+            {
+                return BadRequest();
+            }
         }
 
         /// <summary>
@@ -203,7 +278,7 @@ namespace TodoList.Server.Controllers
             AuthorizeToken? cookieToken = GetCookieTokenOrNull();
             if (cookieToken == null)
             {
-                _logger.LogInformation("Expire fail. Refresh token already expired");
+                _logger.LogInformation("Expire fail. refresh token already expired");
                 return NotFound(new Response(EErrorCode.RefreshTokenExpired));
             }
 
@@ -213,7 +288,6 @@ namespace TodoList.Server.Controllers
                 _logger.LogInformation("Expire fail. cached access token is not match. cached access token: {cachedAccessToken}", cachedAccessToken);
                 return BadRequest(new Response(EErrorCode.CachedAccessTokenNotMatch));
             }
-
 
             //cache, cookie의 token 삭제
             await _cache.RemoveAsync(cookieToken.RefreshToken);
@@ -268,14 +342,7 @@ namespace TodoList.Server.Controllers
 
             string body = sb.ToString();
 
-            MailRequest mailRequest = new()
-            {
-                Body = body,
-                BodyEncoding = Encoding.UTF8,
-                IsBodyHtml = true,
-                Subject = "TodoList 인증 메일",
-                To = email
-            };
+            MailRequest mailRequest = new(email, "TodoList 인증 메일", body, true, Encoding.UTF8);
 
             try
             {
@@ -290,7 +357,7 @@ namespace TodoList.Server.Controllers
         }
 
         /// <summary>
-        /// Cookie의 access token, refresh token 반환합니다.
+        /// Cookie의 access token, refresh token을 반환합니다.
         /// </summary>
         /// <returns>access token, refresh token 둘 다 있을 경우 <see cref="AuthorizeToken"/>. 아니라면 null</returns>
         private AuthorizeToken? GetCookieTokenOrNull()

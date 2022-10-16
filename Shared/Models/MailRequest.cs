@@ -4,12 +4,21 @@ using System.Text;
 
 namespace TodoList.Shared.Models
 {
-    public sealed class MailRequest
+    public class MailRequest
     {
-        public string To { get; set; }
-        public string Subject { get; set; }
-        public string Body { get; set; }
-        public bool IsBodyHtml { get; set; }
-        public Encoding BodyEncoding { get; set; }
+        public MailRequest(string to, string subject, string body, bool isBodyHtml, Encoding bodyEncoding)
+        {
+            To = to;
+            Subject = subject;
+            Body = body;
+            IsBodyHtml = isBodyHtml;
+            BodyEncoding = bodyEncoding;
+        }
+
+        public string To { get; }
+        public string Subject { get; }
+        public string Body { get; }
+        public bool IsBodyHtml { get; }
+        public Encoding BodyEncoding { get; }
     }
 }

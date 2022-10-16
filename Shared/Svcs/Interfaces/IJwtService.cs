@@ -10,6 +10,6 @@ namespace TodoList.Shared.Svcs.Interfaces
         public AuthorizeToken GenerateToken(User user, DateTimeOffset absoluteExpiration);
         public IEnumerable<Claim>? GetClaimsByTokenOrNull(string accessToken);
         public string GetRefreshToken();
-        public Task<User?> GetUserFromAccessTokenOrNullAsync(string accessToken);
+        public Task<User?> GetUserByTokenOrNullAsync(string accessToken);
     }
 }

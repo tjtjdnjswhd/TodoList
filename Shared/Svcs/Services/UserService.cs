@@ -58,7 +58,7 @@ namespace TodoList.Shared.Svcs.Services
         }
 
         [UnsupportedOSPlatform("browser")]
-        public async Task<bool> MatchPassword(LoginInfo loginInfo)
+        public async Task<bool> CanLoginAsync(LoginInfo loginInfo)
         {
             User? user = await GetUserByEmailOrNullAsync(loginInfo.Email);
             if (user == null)

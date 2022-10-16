@@ -13,8 +13,7 @@ namespace TodoList.Server
                 return;
             }
 
-            string title = GetGenericTypeTitleRecursive(context.Type);
-            schema.Title = title;
+            schema.Title = GetGenericTypeTitleRecursive(context.Type);
         }
 
         public string GetGenericTypeTitleRecursive(Type type)

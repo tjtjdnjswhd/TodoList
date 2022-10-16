@@ -25,7 +25,9 @@ namespace TodoList.Shared.Svcs.Services
 
         public string GetVerifyCode(int length)
         {
-            return Convert.ToBase64String(RandomNumberGenerator.GetBytes(length));
+            string code = Convert.ToBase64String(RandomNumberGenerator.GetBytes(length));
+            _logger.LogDebug("Verify code generated. code: {code}", code);
+            return code;
         }
 
         public Task SetVerifyCodeAsync(string key, string code)

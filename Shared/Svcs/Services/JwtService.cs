@@ -42,13 +42,13 @@ namespace TodoList.Shared.Svcs.Services
             };
 
             JwtSecurityToken securifyToken = new(issuer: _jwtSettings.Issuer, audience: _jwtSettings.Audience, claims: claims, expires: absoluteExpiration.UtcDateTime, signingCredentials: credentials);
-            _logger.LogDebug("Security token created. settings: {@settings}, claims = {@claims}, absoluteExpiration: {absoluteExpiration}", _jwtSettings, claims, absoluteExpiration);
+            _logger.LogInformation("Security token created. settings: {@settings}, claims = {@claims}, absolute expiration: {absoluteExpiration}", _jwtSettings, claims, absoluteExpiration);
 
             string accessToken = new JwtSecurityTokenHandler().WriteToken(securifyToken);
             string refreshToken = GetRefreshToken();
             AuthorizeToken authorizeToken = new(accessToken, refreshToken);
 
-            _logger.LogDebug("Token generated. token: {@token}", authorizeToken);
+            _logger.LogInformation("Token generated. token: {@token}", authorizeToken);
             return authorizeToken;
         }
 
@@ -70,16 +70,18 @@ namespace TodoList.Shared.Svcs.Services
             byte[] randomNumber = new byte[32];
             using RandomNumberGenerator rng = RandomNumberGenerator.Create();
             rng.GetBytes(randomNumber);
-            return Convert.ToBase64String(randomNumber);
+            string refreshToken = Convert.ToBase64String(randomNumber);
+            _logger.LogDebug("Refresh token generated. refresh token: {refreshToken}", refreshToken);
+            return refreshToken;
         }
 
-        public async Task<User?> GetUserFromAccessTokenOrNullAsync(string accessToken)
+        public async Task<User?> GetUserByTokenOrNullAsync(string accessToken)
         {
             JwtSecurityTokenHandler tokenHandler = new();
             if (tokenHandler.CanReadToken(accessToken) && Guid.TryParse(tokenHandler.ReadJwtToken(accessToken).Id, out Guid id))
             {
                 User? user = await _userService.GetUserByIdOrNullAsync(id);
-                _logger.LogDebug("Return user. userId: {userId}, access token: {accessToken}", id, accessToken);
+                _logger.LogDebug("Return user. user id: {userId}, access token: {accessToken}", id, accessToken);
                 return user;
             }
             _logger.LogDebug("Read access token fail. access token: {accessToken}", accessToken);
