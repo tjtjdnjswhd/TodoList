@@ -198,7 +198,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(option =>
     {
-        option.SwaggerEndpoint("/swagger/v1/swagger.json", "Todoitem API");
+        option.SwaggerEndpoint("/swagger/v1/swagger.json", "TodoList API");
     });
 }
 else
