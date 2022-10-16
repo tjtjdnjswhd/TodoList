@@ -65,4 +65,4 @@ update-database -project TodoList.Migrations
 + [NLog](https://nlog-project.org/)
 + [Newtonsoft.Json](https://www.newtonsoft.com/json)
 ## Authorize
-cookie + jwt + refresh
+cookie + jwt + refresh token
